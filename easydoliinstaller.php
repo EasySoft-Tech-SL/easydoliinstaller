@@ -2,7 +2,8 @@
 /**
  * ============================================================================
  *  EasyDoliInstaller  -  Instalador "todo en uno" para Dolibarr (estilo Duplicator)
- *  (c) Easysoft Tech S.L.  -  https://github.com/easySoft-Tech-SL
+ *  Autor:      Alberto Luque Rivas <aluquerivasdev@gmail.com>
+ *  Copyright:  (c) Easysoft Tech S.L.  -  https://github.com/easySoft-Tech-SL
  * ============================================================================
  *
  *  Un único archivo que:

@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/EasySoft-Tech-SL/easydoliinstaller/releases"><img src="https://img.shields.io/github/v/release/EasySoft-Tech-SL/easydoliinstaller?style=for-the-badge&color=43ff7d" alt="Release"></a>
+  <a href="https://github.com/EasySoft-Tech-SL/easydoliinstaller/releases/latest"><img src="https://img.shields.io/github/v/release/EasySoft-Tech-SL/easydoliinstaller?sort=semver&display_name=tag&style=for-the-badge&color=43ff7d&label=release" alt="Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-blue?style=for-the-badge" alt="License: GPL-3.0"></a>
   <img src="https://img.shields.io/badge/PHP-7.4%20%E2%86%92%208.3-777BB4?style=for-the-badge&logo=php&logoColor=white" alt="PHP 7.4 to 8.3">
   <img src="https://img.shields.io/badge/DB-MySQL%20%7C%20MariaDB%20%7C%20PostgreSQL-F29111?style=for-the-badge" alt="Databases">
@@ -103,6 +103,10 @@ Interface available in **English · Español · Deutsch · Français · Italiano
 ## 🤝 Contributing
 
 Issues and pull requests are welcome. The whole tool is one auditable PHP file — keep it self-contained, PHP 7.4-compatible, and free of external dependencies. To extend end-to-end integrity verification, add `version => sha256` entries to `di_known_hashes()`.
+
+## 👤 Author
+
+**Alberto Luque Rivas** — [aluquerivasdev@gmail.com](mailto:aluquerivasdev@gmail.com)
 
 ## 📄 License
 
