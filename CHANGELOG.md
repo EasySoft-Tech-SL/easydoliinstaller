@@ -2,6 +2,17 @@
 
 Todos los cambios notables de EasyDoliInstaller.
 
+## [1.4.0] - 2026-06-17
+
+### Cambiado
+- **El paquete es ahora el primer paso** (patrón Softaculous/Duplicator): tras elegir el modo, eliges/descargas el paquete; la configuración queda solo con base de datos + administrador. La descarga (si aplica) ocurre en ese paso dedicado.
+
+### Corregido / UX
+- Los campos del formulario **ya no se pierden** al fallar una validación: se repueblan con lo enviado (incluidas contraseñas), no con la config guardada.
+- La contraseña del administrador **ya no exige mínimo de 8** (solo no vacía, como Dolibarr).
+- La **contraseña de base de datos puede ir vacía** (habitual en entornos de prueba; el usuario de BD solo se crea si hay contraseña).
+- Selector de origen del paquete **más grande**, con toda la fila clicable (`<label>`), radios con color de acento y resalte de la opción activa.
+
 ## [1.3.0] - 2026-06-17
 
 ### Añadido

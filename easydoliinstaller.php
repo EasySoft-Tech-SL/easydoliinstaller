@@ -40,7 +40,7 @@
 @ignore_user_abort(true);
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE & ~E_WARNING);
 
-define('DI_VERSION', '1.3.0');
+define('DI_VERSION', '1.4.0');
 define('DI_DIR', __DIR__);
 define('DI_SELF', basename(__FILE__));
 define('DI_TMPDIR', DI_DIR . '/__doli_installer_tmp__');
@@ -770,7 +770,10 @@ function di_write_install_files($cfg)
     // raíz (../documents). Si el padre no es escribible (o open_basedir lo impide),
     // lo ubicamos DENTRO de la raíz, protegido con .htaccess/web.config.
     $dataRoot = di_compute_dataroot($cfg);   // null = autodetección estándar de Dolibarr
-    $createUser = !empty($db['create']);     // si creamos la BD, creamos también el usuario de app
+    // Crear el usuario de BD solo si creamos la BD Y hay contraseña: Dolibarr aborta la
+    // creación de usuario con contraseña vacía, y en pruebas se usa un usuario ya existente
+    // (p. ej. root sin contraseña), donde basta con crear la base.
+    $createUser = (!empty($db['create']) && $db['pass'] !== '');
 
     // NOTA: NO ponemos un .htaccess "deny" en install/ porque el propio instalador
     // conduce install/step*.php por HTTP (lo bloquearía). La protección del forced es
@@ -1324,8 +1327,9 @@ if (isset($_GET['ajax'])) {
  * ======================================================================== */
 
 $formError = null;
-if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '') === 'guardar') {
-    // Origen del paquete: 'local' (ZIP existente) o 'download' (descargar versión).
+// ---- PASO PAQUETE: elegir ZIP local o descargar versión (común a ambos modos) ----
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '') === 'paquete') {
+    $modo = (($_POST['modo'] ?? 'full') === 'simple') ? 'simple' : 'full';
     $allZips = di_find_zips();
     $pkgsource = (($_POST['pkgsource'] ?? '') === 'download') ? 'download' : 'local';
     $zip = null;
@@ -1344,15 +1348,51 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '')
         $prefix = $zip ? di_detect_prefix($zip) : null;
     }
 
-    $subpath = trim($_POST['subpath'] ?? '');
-    $subpath = trim(str_replace('\\', '/', $subpath), '/');
-    $subpath = preg_replace('#[^A-Za-z0-9_\-/]#', '', $subpath);
-
+    $subpath = preg_replace('#[^A-Za-z0-9_\-/]#', '', trim(str_replace('\\', '/', $_POST['subpath'] ?? ''), '/'));
     $target = DI_DIR . ($subpath !== '' ? '/' . $subpath : '');
     $baseurl = di_self_base_url() . ($subpath !== '' ? '/' . $subpath : '');
-    if (!empty($_POST['baseurl'])) {
-        // Anti-SSRF: solo se acepta si apunta al propio host (o localhost).
-        $baseurl = di_validate_baseurl($_POST['baseurl'], $baseurl);
+
+    $errs = array();
+    if ($pkgsource === 'download') {
+        if (!$downloadVer) {
+            $errs[] = 'Selecciona o escribe una versión válida (formato x.y.z) para descargar.';
+        }
+    } elseif (!$zip) {
+        $errs[] = empty($allZips)
+            ? 'No hay ningún ZIP local. Sube un dolibarr-*.zip o elige "Descargar versión".'
+            : 'Selecciona cuál de los ' . count($allZips) . ' paquetes ZIP quieres usar.';
+    } elseif (!$prefix) {
+        $errs[] = 'El ZIP "' . basename($zip) . '" no parece un paquete oficial de Dolibarr (no contiene "*/htdocs/").';
+    }
+
+    if ($errs) {
+        $formError = $errs;  // se re-renderiza la página 'paquete' (paso ya = paquete)
+    } else {
+        di_save_config(array(
+            'mode' => $modo,
+            'zip' => $zip,
+            'prefix' => $prefix,
+            'download_version' => $downloadVer,
+            'subpath' => $subpath,
+            'target' => $target,
+            'baseurl' => $baseurl,
+        ));
+        if ($pkgsource === 'download') {
+            $next = 'descargar';
+        } else {
+            $next = ($modo === 'simple') ? 'extraer' : 'requisitos';
+        }
+        header('Location: ' . DI_SELF . '?paso=' . $next);
+        exit;
+    }
+}
+
+// ---- PASO CONFIG: solo base de datos + administrador (fusiona en la config del paquete) ----
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '') === 'guardar') {
+    $cfg = di_load_config();
+    if (!$cfg) {
+        header('Location: ' . DI_SELF . '?paso=bienvenida');
+        exit;
     }
 
     $dbType = in_array($_POST['db_type'] ?? 'mysqli', array('mysqli', 'pgsql'), true) ? $_POST['db_type'] : 'mysqli';
@@ -1361,49 +1401,29 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '')
         $dbPort = ($dbType === 'pgsql') ? 5432 : 3306;
     }
 
-    $cfg = array(
-        'mode' => 'full',
-        'zip' => $zip,
-        'prefix' => $prefix,
-        'download_version' => $downloadVer,
-        'subpath' => $subpath,
-        'target' => $target,
-        'baseurl' => $baseurl,
-        'lang' => preg_replace('#[^a-zA-Z_]#', '', $_POST['lang'] ?? 'es_ES'),
-        'forcehttps' => !empty($_POST['forcehttps']),
-        'db' => array(
-            'type' => $dbType,
-            'host' => trim($_POST['db_host'] ?? 'localhost'),
-            'port' => $dbPort,
-            'name' => trim($_POST['db_name'] ?? ''),
-            'prefix' => trim($_POST['db_prefix'] ?? 'llx_'),
-            'user' => trim($_POST['db_user'] ?? ''),
-            'pass' => (string) ($_POST['db_pass'] ?? ''),
-            'create' => !empty($_POST['db_create']),
-            'rootuser' => trim($_POST['db_rootuser'] ?? ''),
-            'rootpass' => (string) ($_POST['db_rootpass'] ?? ''),
-        ),
-        'admin' => array(
-            'login' => trim($_POST['admin_login'] ?? 'admin'),
-            'pass' => (string) ($_POST['admin_pass'] ?? ''),
-        ),
+    $cfg['lang'] = preg_replace('#[^a-zA-Z_]#', '', $_POST['lang'] ?? 'es_ES');
+    $cfg['forcehttps'] = !empty($_POST['forcehttps']);
+    if (!empty($_POST['baseurl'])) {
+        $cfg['baseurl'] = di_validate_baseurl($_POST['baseurl'], $cfg['baseurl']);
+    }
+    $cfg['db'] = array(
+        'type' => $dbType,
+        'host' => trim($_POST['db_host'] ?? 'localhost'),
+        'port' => $dbPort,
+        'name' => trim($_POST['db_name'] ?? ''),
+        'prefix' => trim($_POST['db_prefix'] ?? 'llx_'),
+        'user' => trim($_POST['db_user'] ?? ''),
+        'pass' => (string) ($_POST['db_pass'] ?? ''),
+        'create' => !empty($_POST['db_create']),
+        'rootuser' => trim($_POST['db_rootuser'] ?? ''),
+        'rootpass' => (string) ($_POST['db_rootpass'] ?? ''),
+    );
+    $cfg['admin'] = array(
+        'login' => trim($_POST['admin_login'] ?? 'admin'),
+        'pass' => (string) ($_POST['admin_pass'] ?? ''),
     );
 
-    // Validaciones
     $errs = array();
-    if ($pkgsource === 'download') {
-        if (!$downloadVer) {
-            $errs[] = 'Selecciona o escribe una versión válida (formato x.y.z) para descargar.';
-        }
-    } elseif (!$zip) {
-        if (empty($allZips)) {
-            $errs[] = 'No hay ningún ZIP local. Sube un dolibarr-*.zip o elige "Descargar versión".';
-        } else {
-            $errs[] = 'Selecciona cuál de los ' . count($allZips) . ' paquetes ZIP quieres instalar.';
-        }
-    } elseif (!$prefix) {
-        $errs[] = 'El ZIP "' . basename($zip) . '" no parece un paquete oficial de Dolibarr (no contiene "*/htdocs/").';
-    }
     if ($cfg['db']['name'] === '') {
         $errs[] = 'El nombre de la base de datos es obligatorio.';
     }
@@ -1414,20 +1434,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '')
         $errs[] = 'El prefijo de tablas debe ser alfanumérico y terminar en "_" (p. ej. llx_).';
     }
     if ($cfg['db']['create'] && $cfg['db']['rootuser'] === '') {
-        $errs[] = 'Para crear la base de datos necesitas el usuario root/admin de MySQL.';
+        $errs[] = 'Para crear la base de datos necesitas el usuario root/admin del SGBD.';
     }
-    if ($cfg['db']['create'] && $cfg['db']['pass'] === '') {
-        $errs[] = 'Para crear la base de datos y su usuario, la contraseña del usuario de BD no puede estar vacía.';
-    }
+    // Nota: la contraseña de la BD PUEDE ir vacía (común en entornos de prueba, p. ej. root local).
     if ($cfg['admin']['login'] === '') {
         $errs[] = 'El login del administrador es obligatorio.';
     }
-    if (strlen($cfg['admin']['pass']) < 8) {
-        $errs[] = 'La contraseña del administrador debe tener al menos 8 caracteres.';
+    if (trim($cfg['admin']['pass']) === '') {
+        $errs[] = 'La contraseña del administrador es obligatoria (Dolibarr no permite dejarla vacía).';
     }
-    // El instalador nativo de Dolibarr lee 'pass' con GETPOST('pass','alpha'), que
-    // ELIMINA  "  < > \  ../  y entidades HTML. Si la contraseña los contiene, Dolibarr
-    // crearía el admin con OTRA contraseña y no podrías entrar. La rechazamos aquí.
+    // El instalador nativo de Dolibarr lee 'pass' con GETPOST('pass','alpha'), que ELIMINA
+    // "  < > \  ../  y entidades HTML. Si la contraseña los contiene, Dolibarr crearía el
+    // admin con OTRA contraseña y no podrías entrar. La rechazamos aquí.
     if (preg_match('#["\\\\<>]|\.\./#', $cfg['admin']['pass'])
         || stripos($cfg['admin']['pass'], '&#') !== false
         || stripos($cfg['admin']['pass'], '&quot') !== false) {
@@ -1438,68 +1456,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '')
         $formError = $errs;
     } else {
         di_save_config($cfg);
-        header('Location: ' . DI_SELF . '?paso=' . ($pkgsource === 'download' ? 'descargar' : 'extraer'));
-        exit;
-    }
-}
-
-/* ---------------------------------------------------------------------------
- *  PROCESADO DEL FORMULARIO ULTRASENCILLO (solo extraer + ir a install/)
- * ------------------------------------------------------------------------- */
-if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '') === 'guardar_simple') {
-    $allZips = di_find_zips();
-    $pkgsource = (($_POST['pkgsource'] ?? '') === 'download') ? 'download' : 'local';
-    $zip = null;
-    $prefix = null;
-    $downloadVer = null;
-    if ($pkgsource === 'download') {
-        $downloadVer = di_sanitize_version($_POST['download_version_manual'] ?? '');
-        if (!$downloadVer) {
-            $downloadVer = di_sanitize_version($_POST['download_version'] ?? '');
-        }
-    } else {
-        $zip = di_resolve_zip($_POST['zipfile'] ?? '');
-        if (!$zip && count($allZips) === 1) {
-            $zip = $allZips[0];
-        }
-        $prefix = $zip ? di_detect_prefix($zip) : null;
-    }
-
-    $subpath = trim(str_replace('\\', '/', $_POST['subpath'] ?? ''), '/');
-    $subpath = preg_replace('#[^A-Za-z0-9_\-/]#', '', $subpath);
-    $target = DI_DIR . ($subpath !== '' ? '/' . $subpath : '');
-    $baseurl = di_self_base_url() . ($subpath !== '' ? '/' . $subpath : '');
-    if (!empty($_POST['baseurl'])) {
-        $baseurl = di_validate_baseurl($_POST['baseurl'], $baseurl);
-    }
-
-    $errs = array();
-    if ($pkgsource === 'download') {
-        if (!$downloadVer) {
-            $errs[] = 'Selecciona o escribe una versión válida (x.y.z) para descargar.';
-        }
-    } elseif (!$zip) {
-        $errs[] = empty($allZips)
-            ? 'No hay ZIP local. Sube un dolibarr-*.zip o elige "Descargar versión".'
-            : 'Selecciona cuál de los ' . count($allZips) . ' paquetes ZIP quieres extraer.';
-    } elseif (!$prefix) {
-        $errs[] = 'El ZIP "' . basename($zip) . '" no parece un paquete oficial de Dolibarr (no contiene "*/htdocs/").';
-    }
-
-    if ($errs) {
-        $formError = $errs;
-        $formMode = 'simple';
-    } else {
-        di_save_config(array(
-            'mode' => 'simple',
-            'zip' => $zip,
-            'prefix' => $prefix,
-            'download_version' => $downloadVer,
-            'subpath' => $subpath,
-            'target' => $target,
-            'baseurl' => $baseurl,
-        ));
-        header('Location: ' . DI_SELF . '?paso=' . ($pkgsource === 'download' ? 'descargar' : 'extraer'));
+        header('Location: ' . DI_SELF . '?paso=extraer');
         exit;
     }
 }
@@ -1576,10 +1533,10 @@ $paso = $_GET['paso'] ?? 'bienvenida';
 function di_steps_for_mode($mode)
 {
     if ($mode === 'simple') {
-        return array('bienvenida' => 'inicio', 'simple' => 'paquete', 'extraer' => 'extraer', 'redir' => 'lanzar');
+        return array('bienvenida' => 'inicio', 'paquete' => 'paquete', 'extraer' => 'extraer', 'redir' => 'lanzar');
     }
     return array(
-        'bienvenida' => 'inicio', 'requisitos' => 'requisitos', 'config' => 'config',
+        'bienvenida' => 'inicio', 'paquete' => 'paquete', 'requisitos' => 'requisitos', 'config' => 'config',
         'extraer' => 'extraer', 'instalar' => 'instalar', 'finalizar' => 'listo',
     );
 }
@@ -1591,7 +1548,11 @@ function di_header($title, $current = null)
         $current = $_GET['paso'] ?? 'bienvenida';
     }
     $cfg = di_load_config();
-    $mode = ($cfg && !empty($cfg['mode'])) ? $cfg['mode'] : (($current === 'simple') ? 'simple' : 'full');
+    if (!empty($GLOBALS['di_force_mode'])) {
+        $mode = $GLOBALS['di_force_mode'];
+    } else {
+        $mode = ($cfg && !empty($cfg['mode'])) ? $cfg['mode'] : 'full';
+    }
     $steps = di_steps_for_mode($mode);
     ?>
 <!DOCTYPE html>
@@ -1665,8 +1626,14 @@ function di_header($title, $current = null)
   select option{background:#02110a;color:var(--grn)}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 20px}
   .grid .full{grid-column:1/-1}
-  .chk{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:13px;cursor:pointer}
+  .chk{display:flex;align-items:center;gap:9px;margin-top:14px;font-size:13px;cursor:pointer}
   .chk input{width:auto}
+  .chk input[type=radio],.chk input[type=checkbox]{width:18px;height:18px;accent-color:var(--grn);cursor:pointer;flex:0 0 auto}
+  /* Opciones de origen del paquete: más grandes y toda la fila clicable */
+  .pkgopt{font-size:16px;padding:12px 14px;border:1px solid var(--line);background:var(--panel);margin-top:10px}
+  .pkgopt:hover{border-color:var(--grn);background:rgba(67,255,125,.05)}
+  .pkgopt input[type=radio]{width:22px;height:22px}
+  .pkgopt:has(input:checked){border-color:var(--grn);box-shadow:inset 0 0 0 1px var(--grn)}
   .hint{color:var(--grn-dim);text-shadow:none;font-size:11px;margin-top:3px}
 
   .btn{display:inline-block;background:transparent;border:1px solid var(--grn);color:var(--grn);
@@ -1743,18 +1710,25 @@ function di_footer()
  */
 function di_package_picker($prev, $zips)
 {
-    $prevZip = basename((string) (($prev['zip'] ?? '')));
-    $prevVer = (string) ($prev['download_version'] ?? '');
+    // Si venimos de un envío con error, repoblamos con lo enviado ($_POST), no con la config.
+    $prevZip = isset($_POST['zipfile']) ? basename((string) $_POST['zipfile']) : basename((string) (($prev['zip'] ?? '')));
+    $prevVer = isset($_POST['download_version_manual']) && $_POST['download_version_manual'] !== ''
+        ? (string) $_POST['download_version_manual']
+        : (isset($_POST['download_version']) ? (string) $_POST['download_version'] : (string) ($prev['download_version'] ?? ''));
     $hasCurl = function_exists('curl_init');
-    // Por defecto: local si hay ZIPs y no había versión elegida; si no, descargar.
-    $src = (!empty($zips) && $prevVer === '') ? 'local' : 'download';
+    // Origen por defecto: lo enviado, o local si hay ZIPs y no había versión; si no, descargar.
+    if (isset($_POST['pkgsource'])) {
+        $src = ($_POST['pkgsource'] === 'download') ? 'download' : 'local';
+    } else {
+        $src = (!empty($zips) && $prevVer === '') ? 'local' : 'download';
+    }
     if (empty($zips) && !$hasCurl) {
         $src = 'local';
     }
     ?>
 <div class="win"><div class="t">PAQUETE DE DOLIBARR</div><div class="b">
-    <div class="chk"><input type="radio" name="pkgsource" id="src_local" value="local" <?php echo $src === 'local' ? 'checked' : ''; ?>> usar un ZIP que ya está aquí<?php echo empty($zips) ? ' <span class="dim">(no hay ninguno)</span>' : ''; ?></div>
-    <div class="chk"><input type="radio" name="pkgsource" id="src_dl" value="download" <?php echo $src === 'download' ? 'checked' : ''; ?> <?php echo $hasCurl ? '' : 'disabled'; ?>> descargar una versión automáticamente<?php echo $hasCurl ? '' : ' <span class="dim">(requiere cURL)</span>'; ?></div>
+    <label class="chk pkgopt" for="src_local"><input type="radio" name="pkgsource" id="src_local" value="local" <?php echo $src === 'local' ? 'checked' : ''; ?>> usar un ZIP que ya está aquí<?php echo empty($zips) ? ' <span class="dim">(no hay ninguno)</span>' : ''; ?></label>
+    <label class="chk pkgopt" for="src_dl"><input type="radio" name="pkgsource" id="src_dl" value="download" <?php echo $src === 'download' ? 'checked' : ''; ?> <?php echo $hasCurl ? '' : 'disabled'; ?>> descargar una versión automáticamente<?php echo $hasCurl ? '' : ' <span class="dim">(requiere cURL)</span>'; ?></label>
 
     <div id="blk_local" style="margin-top:12px">
     <?php if (empty($zips)) { ?>
@@ -1821,7 +1795,7 @@ if ($cfgExisting && di_already_installed($cfgExisting) && di_find_lock($cfgExist
 
 // La guarda NO bloquea 'instalar'/'extraer' (los pasos son idempotentes y deben
 // poder reanudarse tras un F5); solo evita relanzar el asistente sobre lo ya hecho.
-if (di_already_installed($cfgExisting) && !in_array($paso, array('finalizar', 'redir', 'instalar', 'extraer', 'descargar'), true)) {
+if (di_already_installed($cfgExisting) && !in_array($paso, array('finalizar', 'redir', 'instalar', 'extraer', 'descargar', 'paquete'), true)) {
     di_header('Ya instalado', $paso);
     echo '<div class="win"><div class="t">AVISO</div><div class="b">';
     echo '<div class="msg warn">Parece que Dolibarr YA está instalado en este directorio (existe conf/conf.php con datos).</div>';
@@ -1850,24 +1824,24 @@ if ($paso === 'bienvenida') {
 <div class="win"><div class="t">PAQUETE</div><div class="b">
 <?php
     if (count($zips) === 0) {
-        echo '<div class="msg err">No se detecta ningún paquete. Sube un <span class="amber">dolibarr-*.zip</span> junto a este archivo y recarga.</div>';
+        echo '<div>Sin ZIP local: en el siguiente paso podrás <span class="amber">descargar la versión que quieras</span> automáticamente.</div>';
     } elseif (count($zips) === 1) {
-        echo '<div>detectado: <span class="amber">' . di_h(basename($zips[0])) . '</span> <span class="dim">(' . round(filesize($zips[0]) / 1048576) . ' MB)</span></div>';
+        echo '<div>detectado: <span class="amber">' . di_h(basename($zips[0])) . '</span> <span class="dim">(' . round(filesize($zips[0]) / 1048576) . ' MB)</span> — o descarga otra versión en el siguiente paso.</div>';
     } else {
-        echo '<div><span class="amber">' . count($zips) . ' paquetes</span> detectados — elegirás cuál en el siguiente paso.</div>';
+        echo '<div><span class="amber">' . count($zips) . ' paquetes</span> detectados — elegirás cuál (o descargarás otro) en el siguiente paso.</div>';
     }
     echo '<div class="dim">destino: ' . di_h(DI_DIR) . '</div>';
     ?>
 </div></div>
 
 <div class="win"><div class="t">ELIGE MODO</div><div class="b">
-    <a class="choice" href="?paso=requisitos">
+    <a class="choice" href="?paso=paquete&modo=full">
         <div class="h">[ 1 ]  INSTALACIÓN AUTOMÁTICA</div>
-        <div class="d">Descomprime + crea base de datos + tablas + administrador + bloqueo. Cero clics en el asistente de Dolibarr. Se autodestruye al terminar.</div>
+        <div class="d">Elige el paquete (local o descargar) → crea base de datos + tablas + administrador + bloqueo. Cero clics en el asistente de Dolibarr. Se autodestruye al terminar.</div>
     </a>
-    <a class="choice" href="?paso=simple">
+    <a class="choice" href="?paso=paquete&modo=simple">
         <div class="h">[ 2 ]  SOLO EXTRAER  <span class="dim">(modo experto)</span></div>
-        <div class="d">Solo descomprime htdocs y te redirige al asistente nativo install/ de Dolibarr para que lo configures tú.</div>
+        <div class="d">Elige el paquete (local o descargar), descomprime htdocs y te redirige al asistente nativo install/ de Dolibarr para que lo configures tú.</div>
     </a>
 </div></div>
 <?php
@@ -1898,20 +1872,24 @@ if ($paso === 'requisitos') {
     if ($blocking) {
         echo '<div class="msg err">Faltan requisitos obligatorios. Corrígelos (consulta a tu hosting) y reintenta.</div>';
     }
-    echo '<div class="row"><a class="btn dim" href="?paso=bienvenida">&lt; ATRÁS</a>';
+    echo '<div class="row"><a class="btn dim" href="?paso=paquete&modo=full">&lt; ATRÁS</a>';
     echo $blocking ? '<a class="btn" href="?paso=requisitos">REINTENTAR</a>' : '<a class="btn" href="?paso=config">CONTINUAR &gt;</a>';
     echo '</div></div></div>';
     di_footer();
     exit;
 }
 
-if ($paso === 'simple') {
-    di_header('Paquete', 'simple');
+if ($paso === 'paquete') {
+    $modo = ((($_POST['modo'] ?? $_GET['modo'] ?? 'full')) === 'simple') ? 'simple' : 'full';
+    $GLOBALS['di_force_mode'] = $modo;
+    di_header('Paquete', 'paquete');
     $zips = di_find_zips();
     $prev = di_load_config();
     ?>
-<div class="win"><div class="t">MODO ULTRASENCILLO — SOLO EXTRAER</div><div class="b">
-<div class="dim">// se descomprime htdocs y te llevamos al asistente nativo install/ de Dolibarr</div>
+<div class="win"><div class="t">ELIGE EL PAQUETE DE DOLIBARR</div><div class="b">
+<div class="dim">// <?php echo $modo === 'simple'
+        ? 'modo ultrasencillo: se descomprime htdocs y te llevamos al asistente nativo install/'
+        : 'instalación automática: tras elegir el paquete configurarás base de datos y administrador'; ?></div>
 <?php if (!empty($GLOBALS['formError'])) {
         echo '<div class="msg err" style="margin-top:10px">';
         foreach ($GLOBALS['formError'] as $e) {
@@ -1920,16 +1898,17 @@ if ($paso === 'simple') {
         echo '</div>';
     } ?>
 </div></div>
-<form method="post" action="<?php echo DI_SELF; ?>?paso=simple">
-    <input type="hidden" name="accion" value="guardar_simple">
+<form method="post" action="<?php echo DI_SELF; ?>?paso=paquete">
+    <input type="hidden" name="accion" value="paquete">
+    <input type="hidden" name="modo" value="<?php echo $modo; ?>">
     <?php di_package_picker($prev, $zips); ?>
     <div class="win"><div class="t">DESTINO</div><div class="b">
     <label class="f">subcarpeta de instalación (opcional, vacío = aquí)</label>
-    <input type="text" name="subpath" value="<?php echo di_h($prev['subpath'] ?? ''); ?>" placeholder="(vacío)">
+    <input type="text" name="subpath" value="<?php echo di_h(isset($_POST['subpath']) ? $_POST['subpath'] : ($prev['subpath'] ?? '')); ?>" placeholder="(vacío)">
     </div></div>
     <div class="row">
         <a class="btn dim" href="?paso=bienvenida">&lt; ATRÁS</a>
-        <button class="btn amber" type="submit">EXTRAER &gt;</button>
+        <button class="btn amber" type="submit"><?php echo $modo === 'simple' ? 'EXTRAER' : 'CONTINUAR'; ?> &gt;</button>
     </div>
 </form>
 <?php
@@ -1938,8 +1917,12 @@ if ($paso === 'simple') {
 }
 
 if ($paso === 'config') {
-    di_header('Configuración');
     $prev = di_load_config();
+    if (!$prev) {
+        header('Location: ' . DI_SELF . '?paso=bienvenida');
+        exit;
+    }
+    di_header('Configuración');
     $g = function ($path, $def = '') use ($prev) {
         if (!$prev) {
             return $def;
@@ -1953,8 +1936,15 @@ if ($paso === 'config') {
         }
         return $v;
     };
-    $zips = di_find_zips();
-    $prevZip = basename((string) $g('zip', ''));
+    // Tras un envío con error NO redirigimos: hay que repoblar los campos con lo que
+    // el usuario escribió ($_POST), no con la config guardada. $fv prioriza $_POST.
+    $isPost = (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST');
+    $fv = function ($postKey, $cfgPath, $def = '') use ($g) {
+        return isset($_POST[$postKey]) ? (string) $_POST[$postKey] : $g($cfgPath, $def);
+    };
+    $fchk = function ($postKey, $cfgPath) use ($g, $isPost) {
+        return $isPost ? isset($_POST[$postKey]) : (bool) $g($cfgPath);
+    };
     ?>
 <?php if (!empty($GLOBALS['formError']) && ($GLOBALS['formMode'] ?? 'full') !== 'simple') {
         echo '<div class="msg err"><b>Revisa:</b><br>';
@@ -1963,13 +1953,21 @@ if ($paso === 'config') {
         }
         echo '</div>';
     } ?>
+<?php
+    $pkgLabel = $g('download_version', '')
+        ? 'descargar dolibarr-' . di_h($g('download_version', '')) . '.zip'
+        : ($g('zip', '') ? di_h(basename($g('zip', ''))) : '(sin definir)');
+    ?>
+<div class="win"><div class="t">PAQUETE ELEGIDO</div><div class="b">
+    <div>· <span class="amber"><?php echo $pkgLabel; ?></span> &rarr; destino <span class="dim"><?php echo di_h($g('target', DI_DIR)); ?></span></div>
+    <div class="hint"><a href="?paso=paquete&modo=full">cambiar paquete</a></div>
+</div></div>
+
 <form method="post" action="<?php echo DI_SELF; ?>?paso=config">
 <input type="hidden" name="accion" value="guardar">
 
-<?php di_package_picker($prev, $zips); ?>
-
 <div class="win"><div class="t">BASE DE DATOS</div><div class="b">
-<?php $dbtype = $g('db.type', 'mysqli'); ?>
+<?php $dbtype = $fv('db_type', 'db.type', 'mysqli'); ?>
 <div class="grid">
     <div><label class="f">tipo de base de datos</label>
         <select name="db_type" id="db_type">
@@ -1977,26 +1975,26 @@ if ($paso === 'config') {
             <option value="pgsql"<?php echo $dbtype === 'pgsql' ? ' selected' : ''; ?>>PostgreSQL</option>
         </select>
     </div>
-    <div><label class="f">servidor (host)</label><input type="text" name="db_host" value="<?php echo di_h($g('db.host', 'localhost')); ?>"></div>
-    <div><label class="f">puerto</label><input type="number" name="db_port" id="db_port" value="<?php echo di_h($g('db.port', '3306')); ?>"></div>
-    <div><label class="f">nombre de la base de datos</label><input type="text" name="db_name" value="<?php echo di_h($g('db.name', 'dolibarr')); ?>"></div>
-    <div><label class="f">prefijo de tablas</label><input type="text" name="db_prefix" value="<?php echo di_h($g('db.prefix', 'llx_')); ?>"></div>
-    <div><label class="f">usuario</label><input type="text" name="db_user" value="<?php echo di_h($g('db.user', '')); ?>"></div>
-    <div><label class="f">contraseña</label><input type="password" name="db_pass" value="<?php echo di_h($g('db.pass', '')); ?>"></div>
+    <div><label class="f">servidor (host)</label><input type="text" name="db_host" value="<?php echo di_h($fv('db_host', 'db.host', 'localhost')); ?>"></div>
+    <div><label class="f">puerto</label><input type="number" name="db_port" id="db_port" value="<?php echo di_h($fv('db_port', 'db.port', '3306')); ?>"></div>
+    <div><label class="f">nombre de la base de datos</label><input type="text" name="db_name" value="<?php echo di_h($fv('db_name', 'db.name', 'dolibarr')); ?>"></div>
+    <div><label class="f">prefijo de tablas</label><input type="text" name="db_prefix" value="<?php echo di_h($fv('db_prefix', 'db.prefix', 'llx_')); ?>"></div>
+    <div><label class="f">usuario</label><input type="text" name="db_user" value="<?php echo di_h($fv('db_user', 'db.user', '')); ?>"></div>
+    <div><label class="f">contraseña <span class="dim">(puede ir vacía en pruebas)</span></label><input type="password" name="db_pass" value="<?php echo di_h($fv('db_pass', 'db.pass', '')); ?>"></div>
 </div>
-<label class="chk"><input type="checkbox" name="db_create" id="db_create" value="1" <?php echo $g('db.create') ? 'checked' : ''; ?>> crear la base de datos automáticamente (requiere usuario administrador del SGBD)</label>
+<label class="chk"><input type="checkbox" name="db_create" id="db_create" value="1" <?php echo $fchk('db_create', 'db.create') ? 'checked' : ''; ?>> crear la base de datos automáticamente (requiere usuario administrador del SGBD)</label>
 <div id="rootbox" style="display:none">
     <div class="grid">
-        <div><label class="f">usuario admin del SGBD (root / postgres)</label><input type="text" name="db_rootuser" value="<?php echo di_h($g('db.rootuser', 'root')); ?>"></div>
-        <div><label class="f">contraseña del admin del SGBD</label><input type="password" name="db_rootpass" value="<?php echo di_h($g('db.rootpass', '')); ?>"></div>
+        <div><label class="f">usuario admin del SGBD (root / postgres)</label><input type="text" name="db_rootuser" value="<?php echo di_h($fv('db_rootuser', 'db.rootuser', 'root')); ?>"></div>
+        <div><label class="f">contraseña del admin del SGBD</label><input type="password" name="db_rootpass" value="<?php echo di_h($fv('db_rootpass', 'db.rootpass', '')); ?>"></div>
     </div>
 </div>
 </div></div>
 
 <div class="win"><div class="t">ADMINISTRADOR DOLIBARR</div><div class="b">
 <div class="grid">
-    <div><label class="f">login</label><input type="text" name="admin_login" value="<?php echo di_h($g('admin.login', 'admin')); ?>"></div>
-    <div><label class="f">contraseña (mín. 8)</label><input type="password" name="admin_pass" value="<?php echo di_h($g('admin.pass', '')); ?>"></div>
+    <div><label class="f">login</label><input type="text" name="admin_login" value="<?php echo di_h($fv('admin_login', 'admin.login', 'admin')); ?>"></div>
+    <div><label class="f">contraseña</label><input type="password" name="admin_pass" value="<?php echo di_h($fv('admin_pass', 'admin.pass', '')); ?>"></div>
 </div>
 </div></div>
 
@@ -2006,22 +2004,21 @@ if ($paso === 'config') {
         <select name="lang">
         <?php
         $langs = array('es_ES' => 'Español', 'en_US' => 'English', 'fr_FR' => 'Français', 'ca_ES' => 'Català', 'pt_PT' => 'Português', 'de_DE' => 'Deutsch', 'it_IT' => 'Italiano');
-        $sel = $g('lang', 'es_ES');
+        $sel = $fv('lang', 'lang', 'es_ES');
         foreach ($langs as $k => $v) {
             echo '<option value="' . $k . '"' . ($sel === $k ? ' selected' : '') . '>' . $v . '</option>';
         }
         ?>
         </select>
     </div>
-    <div><label class="f">subcarpeta (opcional, vacío = aquí)</label><input type="text" name="subpath" value="<?php echo di_h($g('subpath', '')); ?>" placeholder="(vacío)"></div>
-    <div class="full"><label class="chk"><input type="checkbox" name="forcehttps" value="1" <?php echo $g('forcehttps') ? 'checked' : ''; ?>> forzar HTTPS</label></div>
-    <div class="full"><label class="f">URL base detectada</label><input type="text" name="baseurl" value="<?php echo di_h($g('baseurl', di_self_base_url())); ?>"><div class="hint">URL pública de la raíz de Dolibarr; normalmente correcta.</div></div>
+    <div class="full"><label class="chk"><input type="checkbox" name="forcehttps" value="1" <?php echo $fchk('forcehttps', 'forcehttps') ? 'checked' : ''; ?>> forzar HTTPS</label></div>
+    <div class="full"><label class="f">URL base detectada</label><input type="text" name="baseurl" value="<?php echo di_h($fv('baseurl', 'baseurl', di_self_base_url())); ?>"><div class="hint">URL pública de la raíz de Dolibarr; normalmente correcta.</div></div>
 </div>
 </div></div>
 
 <div class="row">
     <a class="btn dim" href="?paso=requisitos">&lt; ATRÁS</a>
-    <button class="btn amber" type="submit">GUARDAR Y DESCOMPRIMIR &gt;</button>
+    <button class="btn amber" type="submit">INSTALAR &gt;</button>
 </div>
 </form>
 <script>
@@ -2046,8 +2043,9 @@ if ($paso === 'descargar') {
         header('Location: ' . DI_SELF . '?paso=bienvenida');
         exit;
     }
-    di_header('Descarga', 'extraer');
+    di_header('Descarga', 'paquete');
     $ver = $cfg['download_version'];
+    $nextStep = (($cfg['mode'] ?? 'full') === 'simple') ? 'extraer' : 'requisitos';
     ?>
 <div class="win"><div class="t">DESCARGANDO :: dolibarr-<?php echo di_h($ver); ?>.zip</div><div class="b">
 <div class="pbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="pbar"><i id="bar"></i><span id="pct">0%</span></div>
@@ -2055,7 +2053,7 @@ if ($paso === 'descargar') {
 <noscript><div class="msg err">Este asistente necesita JavaScript para descargar por bloques. Actívalo y recarga.</div></noscript>
 <div class="msg err" id="err" style="display:none" role="alert"></div>
 <div class="row"><span class="dim">origen: sourceforge.net</span>
-<a class="btn" id="next" style="display:none" href="?paso=extraer">CONTINUAR &gt;</a></div>
+<a class="btn" id="next" style="display:none" href="?paso=<?php echo $nextStep; ?>">CONTINUAR &gt;</a></div>
 </div></div>
 <script>
   var VER=<?php echo json_encode($ver); ?>;
@@ -2078,7 +2076,7 @@ if ($paso === 'descargar') {
         var p=d.total?Math.round(d.next/d.total*100):0;
         bar.style.width=p+'%';pct.textContent=p+'%';pbar.setAttribute('aria-valuenow',p);
         put(ts()+'  bloque '+pad(nb,3)+'  '+ascii(p)+' '+p+'%  '+mb(d.next)+' / '+mb(d.total));
-        if(d.done){put(ts()+'  descarga COMPLETA ('+mb(d.next)+'). validando ZIP ...');put(ts()+'  paquete listo.');next.style.display='inline-block';setTimeout(function(){location.href='?paso=extraer';},700);}
+        if(d.done){put(ts()+'  descarga COMPLETA ('+mb(d.next)+'). validando ZIP ...');put(ts()+'  paquete listo.');next.style.display='inline-block';setTimeout(function(){location.href='?paso=<?php echo $nextStep; ?>';},700);}
         else step(d.next,0);
       })
       .catch(function(e){

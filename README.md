@@ -29,7 +29,9 @@ Dos modos en el mismo archivo:
    - `easydoliinstaller.php` (¡y nada más!)
    - *Opcional*: un `dolibarr-*.zip` si prefieres no descargarlo (si no, el asistente lo baja solo).
 2. Abre en el navegador: `https://tu-dominio/easydoliinstaller.php`
-3. Sigue el asistente. En modo automático, al terminar pulsa **Limpiar** y entras a tu Dolibarr ya instalado.
+3. Sigue el asistente. El **primer paso es el paquete**: usa un ZIP local o descarga la versión que quieras. En modo automático, al terminar pulsa **Limpiar** y entras a tu Dolibarr ya instalado.
+
+   Flujo: `Inicio → Paquete → Requisitos → Config (BD+admin) → Descompresión → Instalación → Listo` (el modo ultrasencillo es `Inicio → Paquete → Descompresión → asistente nativo`).
 
 ## ✅ Requisitos del servidor
 
