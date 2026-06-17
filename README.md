@@ -127,7 +127,9 @@ Interface available in **English · Español · Deutsch · Français · Italiano
 
 ## 🤝 Contributing
 
-Issues and pull requests are welcome. The whole tool is one auditable PHP file — keep it self-contained, PHP 7.4-compatible, and free of external dependencies. To extend end-to-end integrity verification, add `version => sha256` entries to `di_known_hashes()`.
+Issues and pull requests are welcome. The whole tool is one auditable PHP file — keep it self-contained, PHP 7.4-compatible, and free of external dependencies. See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the architecture, how to test, how to run lint, and how to add SHA-256 hashes or a UI language.
+
+Found a security issue? See **[SECURITY.md](SECURITY.md)**.
 
 ## 👤 Author
 
