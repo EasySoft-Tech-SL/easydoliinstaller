@@ -59,9 +59,10 @@ EasyDoliInstaller es una herramienta de **un solo uso**:
 - Cabeceras anti-clickjacking/`no-store`, validación anti-SSRF de la URL base, y autolimpieza agresiva si detecta una instalación ya completada.
 
 - **Descarga verificada**: el paquete se baja por **HTTPS con verificación de certificado** y se comprueba su **SHA‑256** (versiones conocidas) antes de extraerlo, para evitar paquetes manipulados (MITM/mirror).
+- **Token de instalación (anti-CSRF)**: al iniciar el asistente se ata la instalación al navegador que la empezó (cookie `HttpOnly`); cualquier tercero que no la inició recibe **403** en las acciones de extraer/instalar/descargar/limpiar.
 - **Ciclo de vida de secretos**: `install.forced.php` se borra tras crear el admin; las contraseñas se purgan de la config temporal al terminar; `ajax=limpiar` solo acepta POST; el temporal caduca a las 2 h y se borra físicamente.
 
-> ⚠️ Es una herramienta de **un solo uso sin autenticación**: cualquiera que acceda a su URL durante la instalación puede operar el asistente. **No la dejes en un servidor público**: se autodestruye al terminar, pero si interrumpes el proceso, borra manualmente `easydoliinstaller.php`, el `.zip` y la carpeta `__doli_installer_tmp__`.
+> ⚠️ Es una herramienta de **un solo uso**: se autodestruye al terminar. Aun así, **no la dejes en un servidor público**; si interrumpes el proceso, borra manualmente `easydoliinstaller.php`, el `.zip` y la carpeta `__doli_installer_tmp__`.
 
 ## 🐛 Si algo falla
 

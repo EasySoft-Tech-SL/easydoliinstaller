@@ -43,7 +43,7 @@
 @ignore_user_abort(true);
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE & ~E_WARNING);
 
-define('DI_VERSION', '1.6.0');
+define('DI_VERSION', '1.6.1');
 define('DI_DIR', __DIR__);
 define('DI_SELF', basename(__FILE__));
 define('DI_TMPDIR', DI_DIR . '/__doli_installer_tmp__');
@@ -215,6 +215,7 @@ function di_dict()
         'e_noversion' => 'No version selected to download.', 'e_corrupt' => 'The downloaded ZIP is not a valid Dolibarr package (corrupt download). Try again.',
         'e_badhash' => 'Integrity check failed for the downloaded package (version {s}): the SHA-256 does not match. Possible MITM or corrupt mirror. Try again or upload the ZIP manually.',
         'e_noconfig' => 'No saved configuration.', 'e_unknownajax' => 'unknown AJAX action',
+        'e_forbidden' => 'Forbidden: this installation is tied to the browser that started it. Reload the installer in that browser, or delete __doli_installer_tmp__ to start over.',
     ),
     'es' => array(
         'topbar_sub' => 'terminal de instalación', 'lang' => 'idioma',
@@ -320,6 +321,7 @@ function di_dict()
         'e_noversion' => 'No hay versión seleccionada para descargar.', 'e_corrupt' => 'El ZIP descargado no es un paquete Dolibarr válido (descarga corrupta). Reinténtalo.',
         'e_badhash' => 'Falló la verificación de integridad del paquete descargado (versión {s}): el SHA-256 no coincide. Posible MITM o mirror corrupto. Reinténtalo o sube el ZIP a mano.',
         'e_noconfig' => 'No hay configuración guardada.', 'e_unknownajax' => 'acción AJAX desconocida',
+        'e_forbidden' => 'Prohibido: esta instalación está atada al navegador que la inició. Recarga el instalador en ese navegador, o borra __doli_installer_tmp__ para empezar de nuevo.',
     ),
     'de' => array(
         'topbar_sub' => 'Installationsterminal', 'lang' => 'Sprache',
@@ -425,6 +427,7 @@ function di_dict()
         'e_noversion' => 'Keine Version zum Download ausgewählt.', 'e_corrupt' => 'Das heruntergeladene ZIP ist kein gültiges Dolibarr-Paket (beschädigter Download). Erneut versuchen.',
         'e_badhash' => 'Integritätsprüfung des heruntergeladenen Pakets fehlgeschlagen (Version {s}): SHA-256 stimmt nicht überein. Möglicher MITM oder beschädigter Mirror. Erneut versuchen oder ZIP manuell hochladen.',
         'e_noconfig' => 'Keine gespeicherte Konfiguration.', 'e_unknownajax' => 'unbekannte AJAX-Aktion',
+        'e_forbidden' => 'Verboten: diese Installation ist an den Browser gebunden, der sie gestartet hat. Laden Sie den Installer in diesem Browser neu, oder löschen Sie __doli_installer_tmp__, um neu zu beginnen.',
     ),
     'fr' => array(
         'topbar_sub' => 'terminal d\'installation', 'lang' => 'langue',
@@ -530,6 +533,7 @@ function di_dict()
         'e_noversion' => 'Aucune version sélectionnée à télécharger.', 'e_corrupt' => 'Le ZIP téléchargé n\'est pas un paquet Dolibarr valide (téléchargement corrompu). Réessayez.',
         'e_badhash' => 'Échec de la vérification d\'intégrité du paquet téléchargé (version {s}) : le SHA-256 ne correspond pas. MITM possible ou miroir corrompu. Réessayez ou téléversez le ZIP manuellement.',
         'e_noconfig' => 'Aucune configuration enregistrée.', 'e_unknownajax' => 'action AJAX inconnue',
+        'e_forbidden' => 'Interdit : cette installation est liée au navigateur qui l\'a lancée. Rechargez l\'installateur dans ce navigateur, ou supprimez __doli_installer_tmp__ pour recommencer.',
     ),
     'it' => array(
         'topbar_sub' => 'terminale di installazione', 'lang' => 'lingua',
@@ -635,6 +639,7 @@ function di_dict()
         'e_noversion' => 'Nessuna versione selezionata da scaricare.', 'e_corrupt' => 'Lo ZIP scaricato non è un pacchetto Dolibarr valido (download corrotto). Riprova.',
         'e_badhash' => 'Verifica di integrità fallita per il pacchetto scaricato (versione {s}): lo SHA-256 non corrisponde. Possibile MITM o mirror corrotto. Riprova o carica lo ZIP manualmente.',
         'e_noconfig' => 'Nessuna configurazione salvata.', 'e_unknownajax' => 'azione AJAX sconosciuta',
+        'e_forbidden' => 'Vietato: questa installazione è legata al browser che l\'ha avviata. Ricarica l\'installer in quel browser, o elimina __doli_installer_tmp__ per ricominciare.',
     ),
     );
     return $d;
@@ -1052,6 +1057,11 @@ function di_save_config($cfg)
     if (!isset($cfg['ts'])) {
         $cfg['ts'] = time();
     }
+    // Token por instalación: ata las operaciones mutantes al navegador que la inició
+    // (anti-CSRF y anti-secuestro de una instalación en curso por un tercero).
+    if (empty($cfg['tok'])) {
+        $cfg['tok'] = function_exists('random_bytes') ? bin2hex(random_bytes(16)) : sha1(uniqid('', true) . mt_rand());
+    }
     // Guardamos como .php con guardia: si el servidor ignora el .htaccess (Nginx,
     // LiteSpeed, AllowOverride None) y ejecuta el .php, devuelve 403; si lo sirviera
     // como texto, el JSON queda tras un die() y no es trivialmente accesible.
@@ -1059,6 +1069,34 @@ function di_save_config($cfg)
         . DI_CONFIG_MARK . json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     @file_put_contents(DI_CONFIG, $body);
     @chmod(DI_CONFIG, 0600);
+}
+
+/** Emite la cookie con el token de la instalación (HttpOnly, SameSite=Lax). */
+function di_set_token_cookie($tok)
+{
+    if (!$tok || headers_sent()) {
+        return;
+    }
+    $secure = (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off')
+        || (($_SERVER['SERVER_PORT'] ?? '') == 443);
+    @setcookie('edi_tok', $tok, array(
+        'expires' => time() + DI_CONFIG_TTL, 'path' => '/',
+        'httponly' => true, 'samesite' => 'Lax', 'secure' => $secure,
+    ));
+    $_COOKIE['edi_tok'] = $tok;
+}
+
+/**
+ * ¿La petición porta el token de ESTA instalación? true si no hay token aún
+ * (fase de arranque) o si coincide; false si hay token y no coincide.
+ */
+function di_token_ok($cfg)
+{
+    if (!$cfg || empty($cfg['tok'])) {
+        return true; // aún no hay instalación atada a un navegador
+    }
+    $given = $_COOKIE['edi_tok'] ?? ($_POST['tok'] ?? ($_GET['tok'] ?? ''));
+    return is_string($given) && hash_equals($cfg['tok'], $given);
 }
 
 function di_h($s)
@@ -1849,6 +1887,14 @@ if (isset($_GET['ajax'])) {
     $ajax = $_GET['ajax'];
     $cfg = di_load_config();
 
+    // Anti-CSRF / anti-secuestro: las acciones mutantes exigen el token de la instalación
+    // (cookie puesta en el arranque). 'versiones' no toca estado y queda exenta.
+    if (in_array($ajax, array('extraer', 'instalar', 'descargar', 'limpiar'), true) && !di_token_ok($cfg)) {
+        http_response_code(403);
+        echo json_encode(array('error' => di_t('e_forbidden')));
+        exit;
+    }
+
     if ($ajax === 'versiones') {
         echo json_encode(array('versions' => di_fetch_versions()));
         exit;
@@ -2038,6 +2084,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '')
             'target' => $target,
             'baseurl' => $baseurl,
         ));
+        // Arranque de la instalación: emitimos la cookie con el token recién generado.
+        $saved = di_load_config();
+        if ($saved) {
+            di_set_token_cookie($saved['tok'] ?? '');
+        }
         if ($pkgsource === 'download') {
             $next = 'descargar';
         } else {
@@ -2051,6 +2102,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '')
 // ---- PASO CONFIG: solo base de datos + administrador (fusiona en la config del paquete) ----
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '') === 'guardar') {
     $cfg = di_load_config();
+    if ($cfg && !di_token_ok($cfg)) {
+        http_response_code(403);
+        di_header(di_t('gi_title'), 'config');
+        echo '<div class="win"><div class="t">403</div><div class="b"><div class="msg err">' . di_h(di_t('e_forbidden')) . '</div></div></div>';
+        di_footer();
+        exit;
+    }
     if (!$cfg) {
         header('Location: ' . DI_SELF . '?paso=bienvenida');
         exit;

@@ -2,6 +2,11 @@
 
 Todos los cambios notables de EasyDoliInstaller.
 
+## [1.6.1] - 2026-06-17
+
+### Seguridad
+- **Token de instalación (anti-CSRF + anti-secuestro)**: al arrancar se genera un token aleatorio, se guarda en la config y se emite en una cookie `HttpOnly`/`SameSite=Lax`. Las acciones mutantes (`extraer`/`instalar`/`descargar`/`limpiar` y el POST de configuración) exigen ese token → un tercero que no inició la instalación recibe **403**. Cierra el último hallazgo MEDIO de la auditoría (ausencia de autenticación durante la ventana de instalación). El flujo de un solo navegador no cambia (la cookie viaja sola en las peticiones del propio asistente).
+
 ## [1.6.0] - 2026-06-17 — Endurecimiento de seguridad
 
 Tras una auditoría de seguridad adversarial (13 hallazgos confirmados):
