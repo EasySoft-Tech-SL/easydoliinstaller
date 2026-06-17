@@ -41,7 +41,7 @@ It ships with a retro **terminal/CRT interface** and a **real live log** of ever
 <tr><td>⚡ <b>Native-speed unpack</b></td><td><code>ZipArchive::extractTo</code> in C, by blocks — ~17,000 files in seconds, like 7-Zip.</td></tr>
 <tr><td>🤖 <b>Two modes</b></td><td><b>Automatic</b> (DB + tables + admin + lock, zero clicks) or <b>Extract-only</b> (unpack and hand off to Dolibarr's native wizard).</td></tr>
 <tr><td>⬆️ <b>Upgrade existing</b></td><td>Detects an installed Dolibarr and upgrades it: downloads a newer version, <b>preserves</b> <code>conf/</code>, <code>custom/</code> and <code>documents/</code>, and runs every native migration <b>one major at a time in a single pass</b> with a live log (e.g. v6 → v23). No downgrades; auto DB restore point before migrating.</td></tr>
-<tr><td>🛠️ <b>Repair / verify</b></td><td>Checks an install <b>file-by-file</b> against the official package of the <b>same version</b>, shows a visual report of changed/missing files (excluding <code>conf/</code>, <code>custom/</code>, <code>documents/</code>), lets you download a ZIP of the affected files, and restores them from the official package — all with confirmation.</td></tr>
+<tr><td>🛠️ <b>Repair / verify</b></td><td>Checks an install <b>file-by-file</b> against the official package of the <b>same version</b>; reports <b>changed, missing and unexpected/injected</b> files (excluding <code>conf/</code>, <code>custom/</code>, <code>documents/</code>), downloads a ZIP of the affected files, restores from the official package and (optionally) deletes the unexpected ones — all with confirmation. A real integrity/anti-tamper check.</td></tr>
 <tr><td>🗄️ <b>MySQL &amp; PostgreSQL</b></td><td>Choose the engine; default port and verification adapt automatically.</td></tr>
 <tr><td>🌐 <b>5 languages</b></td><td>English, Español, Deutsch, Français, Italiano — self-contained, with a switcher and browser auto-detection.</td></tr>
 <tr><td>🖥️ <b>CRT UI + live log</b></td><td>Phosphor-green terminal aesthetic; every chunk and step is logged in real time.</td></tr>
@@ -89,15 +89,15 @@ Drop `easydoliinstaller.php` into the root of an **already installed** Dolibarr 
 - **Automatic (all at once)** — replaces the files **preserving** `conf/conf.php`, your `custom/` modules and `documents/`, then drives Dolibarr's own upgrade across every intermediate major version in a single run (`upgrade.php` → `upgrade2.php` per jump, `step5` to finish), showing a **live log** of each migration. A direct **v6 → v23** jump runs all 17 major migrations in one pass. Per-statement SQL notices are treated as warnings (exactly as the native wizard does); success is confirmed against the version recorded in the database.
 - **Step by step** — replaces the files and hands you off to Dolibarr's native upgrade wizard.
 
-> Upgrades modify the database. A backup is recommended — the wizard offers an optional `.sql` dump (MySQL/MariaDB) before it starts.
+> Upgrades modify the database. The wizard offers a downloadable `.sql` dump and auto-saves a restore point in `documents/` before migrating — **MySQL/MariaDB** natively, and **PostgreSQL** when `pg_dump` is available on the server.
 
 ## 🛠️ Repairing an existing Dolibarr
 
 Detects an installed Dolibarr and offers **Repair / verify integrity**. Pick the **official package of the same version** (download or local ZIP) and it:
 
 1. Compares the install **file-by-file** against the official package (by hash), in chunks with a live log.
-2. Shows a **visual report** of files that **differ** (`~`) or are **missing** (`+`) — `conf/`, `custom/` and `documents/` are excluded so your data and modules are never flagged.
-3. Lets you **download a ZIP** of the affected files, then **restores** them from the official package on confirmation (a backup zip of the affected files is kept first).
+2. Shows a **visual report** of files that **differ** (`~`), are **missing** (`+`) or are **unexpected/injected** (`!` — present locally but not in the official package, e.g. a planted webshell) — `conf/`, `custom/` and `documents/` are excluded so your data and modules are never flagged.
+3. Lets you **download a ZIP** of the affected files, then **restores** changed/missing files from the official package and (optionally) **deletes the unexpected** ones — each on confirmation (a backup zip is kept first). This makes it a lightweight **integrity / anti-tamper** check.
 
 Together with install and upgrade, this gives you the full lifecycle: **install · upgrade · repair**.
 

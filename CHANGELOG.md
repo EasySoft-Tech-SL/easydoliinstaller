@@ -2,6 +2,22 @@
 
 Todos los cambios notables de EasyDoliInstaller.
 
+## [1.9.0] - 2026-06-17
+
+### Añadido — reparar detecta ficheros inyectados/sobrantes (anti-manipulación)
+- El informe de **reparar** ahora incluye un tercer apartado: ficheros que **sobran** en el core (presentes en la instalación pero **no** en el paquete oficial — posible webshell/manipulación o parches locales). Se excluyen `conf/`, `custom/` y `documents/`, los temporales y el propio instalador/paquete.
+- Permite **borrar los sobrantes** con confirmación explícita (nunca automático), guardando antes un ZIP de copia. Convierte "reparar" en una verificación de integridad/seguridad real.
+- Probado e2e: instalación 3.9.0 con 1 fichero modificado + 1 borrado + 2 inyectados (incl. un `eval($_GET)` en `core/`) → el informe detecta los 4, restaura modificados/ausentes y elimina los 2 sobrantes; `conf/conf.php` intacto.
+
+### Añadido — backup/rollback en PostgreSQL
+- El auto‑dump (punto de restauración antes de migrar), el botón de descarga de backup y el camino de copia ahora soportan **PostgreSQL vía `pg_dump`** cuando está disponible en el servidor (detección automática del binario, `proc_open` con `PGPASSWORD`). Si no hay `pg_dump`, se muestra el aviso para hacerlo a mano. (Args de `pg_dump` validados contra PostgreSQL 16.)
+
+### Pulido
+- **Aviso de versión no coincidente** en reparar: si el paquete elegido no coincide con la versión instalada (lo que inflaría el diff), se avisa en el informe.
+- **Reanudación de la verificación** tras un F5 (continúa desde el último bloque comprobado en vez de reiniciar).
+- Más hashes SHA‑256 conocidos para la verificación de integridad de descargas (añadido 3.9.0).
+- **CI**: workflow de GitHub Actions que ejecuta `php -l` en PHP 7.4 / 8.1 / 8.3 en cada push/PR.
+
 ## [1.8.0] - 2026-06-17
 
 ### Añadido — MODO REPARAR (verificar integridad y restaurar)

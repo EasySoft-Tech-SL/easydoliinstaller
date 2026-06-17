@@ -25,9 +25,10 @@
  *  Antes de migrar guarda un dump de la BD (punto de restauración) en documents/.
  *
  *  MODO REPARAR: coteja la instalación fichero a fichero con el paquete OFICIAL de la
- *  MISMA versión, muestra un informe de los que difieren o faltan (excluye conf/, custom/
- *  y documents/), permite descargar un ZIP de los afectados y los restaura desde el
- *  oficial, todo con confirmación. Así el instalador cubre INSTALAR, ACTUALIZAR y REPARAR.
+ *  MISMA versión, muestra un informe de los que difieren, faltan o SOBRAN (ficheros
+ *  inyectados/no oficiales en el core; excluye conf/, custom/ y documents/), permite
+ *  descargar un ZIP de los afectados, restaurar desde el oficial y borrar los sobrantes,
+ *  todo con confirmación. Así el instalador cubre INSTALAR, ACTUALIZAR y REPARAR.
  *
  *  USO
  *  ---
@@ -56,7 +57,7 @@
 @ignore_user_abort(true);
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE & ~E_WARNING);
 
-define('DI_VERSION', '1.8.0');
+define('DI_VERSION', '1.9.0');
 define('DI_DIR', __DIR__);
 define('DI_SELF', basename(__FILE__));
 define('DI_TMPDIR', DI_DIR . '/__doli_installer_tmp__');
@@ -257,6 +258,11 @@ function di_dict()
         'ir_dlzip' => 'DOWNLOAD AFFECTED FILES (.zip)', 'ir_repair' => 'REPAIR {n} FILES',
         'ir_confirm' => 'Restore {n} files from the official package (overwriting the current ones)? A backup zip of the affected files is kept first.',
         'ir_working' => 'repairing ...', 'ir_done' => 'repair done.', 'ir_fail' => 'repair failed.', 'ir_clean_btn' => 'REMOVE INSTALLER',
+        'vf_extras' => 'scanning for unexpected files ...',
+        'ir_extrasum' => '{n} unexpected files in core (not in the official package)',
+        'ir_delextra' => 'DELETE {n} EXTRA FILES', 'ir_confirmdel' => 'Delete {n} unexpected files from the install? They are NOT in the official package (possible tampering or local patches). A backup zip is kept first. This cannot be undone.',
+        'ir_deleting' => 'deleting extra files ...', 'ir_noextra' => 'no extra files to delete.', 'ir_extradel' => 'Deleted: {ok} removed, {fail} failed.',
+        'ir_vermismatch' => 'The chosen package ({pkg}) does not match the installed version ({inst}); the diff will be inflated. Use the same version.',
         'pk_nodown' => '(only {s} or newer)',
         'e_exists' => 'A Dolibarr is already installed here. Use Update, or confirm a reinstall.',
         'fn_title_up' => 'UPGRADE COMPLETE', 'fn_op_up' => 'dolibarr upgraded', 'fn_upgraded' => 'version: {s}',
@@ -420,6 +426,11 @@ function di_dict()
         'ir_dlzip' => 'DESCARGAR FICHEROS AFECTADOS (.zip)', 'ir_repair' => 'REPARAR {n} FICHEROS',
         'ir_confirm' => '¿Restaurar {n} ficheros desde el paquete oficial (sobrescribiendo los actuales)? Antes se guarda un zip de copia de los afectados.',
         'ir_working' => 'reparando ...', 'ir_done' => 'reparación completada.', 'ir_fail' => 'la reparación falló.', 'ir_clean_btn' => 'QUITAR INSTALADOR',
+        'vf_extras' => 'buscando ficheros inesperados ...',
+        'ir_extrasum' => '{n} ficheros inesperados en el core (no están en el paquete oficial)',
+        'ir_delextra' => 'BORRAR {n} SOBRANTES', 'ir_confirmdel' => '¿Borrar {n} ficheros inesperados de la instalación? NO están en el paquete oficial (posible manipulación o parches locales). Antes se guarda un zip de copia. Esto no se puede deshacer.',
+        'ir_deleting' => 'borrando sobrantes ...', 'ir_noextra' => 'no hay sobrantes que borrar.', 'ir_extradel' => 'Borrados: {ok} eliminados, {fail} fallidos.',
+        'ir_vermismatch' => 'El paquete elegido ({pkg}) no coincide con la versión instalada ({inst}); el diff saldrá inflado. Usa la misma versión.',
         'pk_nodown' => '(solo {s} o superior)',
         'e_exists' => 'Ya hay un Dolibarr instalado aquí. Usa Actualizar, o confirma una reinstalación.',
         'fn_title_up' => 'ACTUALIZACIÓN COMPLETA', 'fn_op_up' => 'dolibarr actualizado', 'fn_upgraded' => 'versión: {s}',
@@ -583,6 +594,11 @@ function di_dict()
         'ir_dlzip' => 'BETROFFENE DATEIEN HERUNTERLADEN (.zip)', 'ir_repair' => '{n} DATEIEN REPARIEREN',
         'ir_confirm' => '{n} Dateien aus dem offiziellen Paket wiederherstellen (die aktuellen überschreiben)? Zuvor wird ein Backup-Zip der betroffenen Dateien gespeichert.',
         'ir_working' => 'repariere ...', 'ir_done' => 'Reparatur fertig.', 'ir_fail' => 'Reparatur fehlgeschlagen.', 'ir_clean_btn' => 'INSTALLER ENTFERNEN',
+        'vf_extras' => 'suche nach unerwarteten Dateien ...',
+        'ir_extrasum' => '{n} unerwartete Dateien im Core (nicht im offiziellen Paket)',
+        'ir_delextra' => '{n} EXTRA-DATEIEN LÖSCHEN', 'ir_confirmdel' => '{n} unerwartete Dateien aus der Installation löschen? Sie sind NICHT im offiziellen Paket (mögliche Manipulation oder lokale Patches). Zuvor wird ein Backup-Zip gespeichert. Nicht rückgängig zu machen.',
+        'ir_deleting' => 'lösche Extra-Dateien ...', 'ir_noextra' => 'keine Extra-Dateien zu löschen.', 'ir_extradel' => 'Gelöscht: {ok} entfernt, {fail} fehlgeschlagen.',
+        'ir_vermismatch' => 'Das gewählte Paket ({pkg}) entspricht nicht der installierten Version ({inst}); der Diff wird aufgebläht. Verwenden Sie dieselbe Version.',
         'pk_nodown' => '(nur {s} oder neuer)',
         'e_exists' => 'Hier ist bereits ein Dolibarr installiert. Nutzen Sie Aktualisieren oder bestätigen Sie eine Neuinstallation.',
         'fn_title_up' => 'UPGRADE ABGESCHLOSSEN', 'fn_op_up' => 'dolibarr aktualisiert', 'fn_upgraded' => 'Version: {s}',
@@ -746,6 +762,11 @@ function di_dict()
         'ir_dlzip' => 'TÉLÉCHARGER LES FICHIERS CONCERNÉS (.zip)', 'ir_repair' => 'RÉPARER {n} FICHIERS',
         'ir_confirm' => 'Restaurer {n} fichiers depuis le paquet officiel (en écrasant les actuels) ? Un zip de sauvegarde des fichiers concernés est conservé au préalable.',
         'ir_working' => 'réparation ...', 'ir_done' => 'réparation terminée.', 'ir_fail' => 'échec de la réparation.', 'ir_clean_btn' => 'SUPPRIMER L\'INSTALLATEUR',
+        'vf_extras' => 'recherche de fichiers inattendus ...',
+        'ir_extrasum' => '{n} fichiers inattendus dans le cœur (absents du paquet officiel)',
+        'ir_delextra' => 'SUPPRIMER {n} FICHIERS EN TROP', 'ir_confirmdel' => 'Supprimer {n} fichiers inattendus de l\'installation ? Ils ne sont PAS dans le paquet officiel (manipulation possible ou correctifs locaux). Un zip de sauvegarde est conservé au préalable. Irréversible.',
+        'ir_deleting' => 'suppression des fichiers en trop ...', 'ir_noextra' => 'aucun fichier en trop à supprimer.', 'ir_extradel' => 'Supprimés : {ok} retirés, {fail} échoués.',
+        'ir_vermismatch' => 'Le paquet choisi ({pkg}) ne correspond pas à la version installée ({inst}) ; le diff sera gonflé. Utilisez la même version.',
         'pk_nodown' => '(seulement {s} ou plus récent)',
         'e_exists' => 'Un Dolibarr est déjà installé ici. Utilisez Mettre à jour, ou confirmez une réinstallation.',
         'fn_title_up' => 'MISE À JOUR TERMINÉE', 'fn_op_up' => 'dolibarr mis à jour', 'fn_upgraded' => 'version : {s}',
@@ -909,6 +930,11 @@ function di_dict()
         'ir_dlzip' => 'SCARICA I FILE INTERESSATI (.zip)', 'ir_repair' => 'RIPARA {n} FILE',
         'ir_confirm' => 'Ripristinare {n} file dal pacchetto ufficiale (sovrascrivendo quelli attuali)? Prima viene salvato uno zip di backup dei file interessati.',
         'ir_working' => 'riparazione ...', 'ir_done' => 'riparazione completata.', 'ir_fail' => 'riparazione fallita.', 'ir_clean_btn' => 'RIMUOVI INSTALLER',
+        'vf_extras' => 'ricerca di file inattesi ...',
+        'ir_extrasum' => '{n} file inattesi nel core (non presenti nel pacchetto ufficiale)',
+        'ir_delextra' => 'ELIMINA {n} FILE IN ECCESSO', 'ir_confirmdel' => 'Eliminare {n} file inattesi dall\'installazione? NON sono nel pacchetto ufficiale (possibile manomissione o patch locali). Prima viene salvato uno zip di backup. Irreversibile.',
+        'ir_deleting' => 'eliminazione file in eccesso ...', 'ir_noextra' => 'nessun file in eccesso da eliminare.', 'ir_extradel' => 'Eliminati: {ok} rimossi, {fail} falliti.',
+        'ir_vermismatch' => 'Il pacchetto scelto ({pkg}) non corrisponde alla versione installata ({inst}); il diff sarà gonfiato. Usa la stessa versione.',
         'pk_nodown' => '(solo {s} o superiore)',
         'e_exists' => 'Qui è già installato un Dolibarr. Usa Aggiorna, oppure conferma una reinstallazione.',
         'fn_title_up' => 'AGGIORNAMENTO COMPLETATO', 'fn_op_up' => 'dolibarr aggiornato', 'fn_upgraded' => 'versione: {s}',
@@ -1146,6 +1172,7 @@ function di_known_hashes()
 {
     return array(
         '23.0.3' => '40c1c36133aeec69a6c1ca0c00edbed988b1655cc0a2a3fe34d51da1cd8f24e6',
+        '3.9.0' => '6423c4e54b3c0c858a33eb3d44567b90264342af35ccbe25e5b1addaaeb68e05',
     );
 }
 
@@ -2451,14 +2478,12 @@ function di_run_upgrade_substep($cfg, $sub)
         // Punto de restauración: vuelca la BD a un fichero protegido que sobrevive a la
         // limpieza. Es best-effort: si falla, avisamos pero NO abortamos (el usuario
         // también pudo descargar el dump manualmente en el paso anterior).
-        if ((isset($cfg['db']['type']) ? $cfg['db']['type'] : 'mysqli') !== 'mysqli') {
-            return array('ok' => true, 'msg' => di_t('up_bk_pg'));
-        }
         $path = di_rollback_dump_path($cfg);
         list($ok, $bytes, $err) = di_dump_db_file($cfg, $path);
         if (!$ok) {
             di_log('backup rollback FAIL: ' . $err);
-            return array('ok' => true, 'msg' => di_t('up_bk_warn', array('{s}' => $err)));
+            // PostgreSQL sin pg_dump: aviso específico; cualquier otro fallo, aviso genérico.
+            return array('ok' => true, 'msg' => ($err === 'pgsql-nodump') ? di_t('up_bk_pg') : di_t('up_bk_warn', array('{s}' => $err)));
         }
         di_log('backup rollback OK: ' . $path . ' (' . $bytes . ' bytes)');
         return array('ok' => true, 'msg' => di_t('up_bk_ok', array('{s}' => basename($path), '{n}' => max(1, (int) round($bytes / 1024)))));
@@ -2653,9 +2678,98 @@ function di_dump_mysql_to($cfg, $fh)
     return array(true, '', $bytes);
 }
 
+/** Localiza un binario pg_dump utilizable, o null. */
+function di_pg_dump_bin()
+{
+    static $cached = false;
+    if ($cached !== false) {
+        return $cached;
+    }
+    $cached = null;
+    if (!function_exists('proc_open')) {
+        return null;
+    }
+    $cands = array('pg_dump');
+    foreach (glob('C:/laragon/bin/postgresql/*/bin/pg_dump.exe') ?: array() as $g) {
+        $cands[] = $g;
+    }
+    foreach (array('/usr/bin/pg_dump', '/usr/local/bin/pg_dump', '/usr/pgsql/bin/pg_dump') as $g) {
+        if (@is_file($g)) {
+            $cands[] = $g;
+        }
+    }
+    foreach ($cands as $bin) {
+        $cmd = (PHP_VERSION_ID >= 70400) ? array($bin, '--version') : escapeshellarg($bin) . ' --version';
+        $desc = array(1 => array('pipe', 'w'), 2 => array('pipe', 'w'));
+        $p = @proc_open($cmd, $desc, $pipes);
+        if (is_resource($p)) {
+            $out = stream_get_contents($pipes[1]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $code = proc_close($p);
+            if ($code === 0 && stripos((string) $out, 'pg_dump') !== false) {
+                $cached = $bin;
+                return $cached;
+            }
+        }
+    }
+    return null;
+}
+
+/** Vuelca PostgreSQL al handle dado usando pg_dump (estructura + datos). [ok, error, bytes]. */
+function di_dump_pgsql_to($cfg, $fh)
+{
+    $db = isset($cfg['db']) ? $cfg['db'] : array();
+    $bin = di_pg_dump_bin();
+    if (!$bin) {
+        return array(false, 'pgsql-nodump', 0);
+    }
+    $args = array($bin,
+        '--host=' . (isset($db['host']) ? $db['host'] : 'localhost'),
+        '--port=' . (int) ((isset($db['port']) ? $db['port'] : 5432) ?: 5432),
+        '--username=' . (isset($db['user']) ? $db['user'] : 'postgres'),
+        '--no-owner', '--no-privileges', '--clean', '--if-exists',
+        (isset($db['name']) ? $db['name'] : 'dolibarr'),
+    );
+    $cmd = (PHP_VERSION_ID >= 70400) ? $args : implode(' ', array_map('escapeshellarg', $args));
+    $env = $_ENV;
+    $env['PGPASSWORD'] = (string) (isset($db['pass']) ? $db['pass'] : '');
+    $desc = array(0 => array('pipe', 'r'), 1 => array('pipe', 'w'), 2 => array('pipe', 'w'));
+    $proc = @proc_open($cmd, $desc, $pipes, null, $env);
+    if (!is_resource($proc)) {
+        return array(false, 'proc_open', 0);
+    }
+    fclose($pipes[0]);
+    $bytes = 0;
+    while (!feof($pipes[1])) {
+        $chunk = fread($pipes[1], 65536);
+        if ($chunk !== false && $chunk !== '') {
+            $bytes += fwrite($fh, $chunk);
+        }
+    }
+    fclose($pipes[1]);
+    $err = stream_get_contents($pipes[2]);
+    fclose($pipes[2]);
+    $code = proc_close($proc);
+    if ($code !== 0) {
+        return array(false, trim((string) $err) ?: ('pg_dump exit ' . $code), $bytes);
+    }
+    return array(true, '', $bytes);
+}
+
+/** Dispatcher de volcado: MySQL/MariaDB (PHP) o PostgreSQL (pg_dump). [ok, error, bytes]. */
+function di_dump_db_to($cfg, $fh)
+{
+    $type = isset($cfg['db']['type']) ? $cfg['db']['type'] : 'mysqli';
+    if ($type === 'pgsql') {
+        return di_dump_pgsql_to($cfg, $fh);
+    }
+    return di_dump_mysql_to($cfg, $fh);
+}
+
 /**
  * Vuelca un backup lógico de la base de datos como DESCARGA .sql (best-effort).
- * MySQL/MariaDB: estructura + datos (streaming). PostgreSQL: aviso (usar pg_dump).
+ * MySQL/MariaDB: PHP. PostgreSQL: pg_dump si está disponible; si no, aviso.
  */
 function di_stream_backup($cfg)
 {
@@ -2668,13 +2782,13 @@ function di_stream_backup($cfg)
     while (ob_get_level() > 0) {
         @ob_end_flush();
     }
-    if ($type !== 'mysqli') {
-        echo "-- EasyDoliInstaller backup\n-- PostgreSQL: el volcado automatico no esta disponible aqui. Use pg_dump:\n";
+    if ($type === 'pgsql' && !di_pg_dump_bin()) {
+        echo "-- EasyDoliInstaller backup\n-- PostgreSQL: pg_dump no esta disponible en este servidor. Volcado manual:\n";
         echo "--   pg_dump -h " . (isset($db['host']) ? $db['host'] : 'localhost') . " -U " . (isset($db['user']) ? $db['user'] : 'user') . " " . $dbname . " > backup.sql\n";
         return;
     }
     $fh = fopen('php://output', 'wb');
-    list($ok, $err) = di_dump_mysql_to($cfg, $fh);
+    list($ok, $err) = di_dump_db_to($cfg, $fh);
     if (!$ok) {
         fwrite($fh, "-- ERROR: $err\n");
     }
@@ -2709,15 +2823,15 @@ function di_rollback_dump_path($cfg)
 /** Vuelca la BD a un fichero protegido del servidor (punto de restauración). [ok, bytes, error]. */
 function di_dump_db_file($cfg, $path)
 {
-    $db = isset($cfg['db']) ? $cfg['db'] : array();
-    if ((isset($db['type']) ? $db['type'] : 'mysqli') !== 'mysqli') {
-        return array(false, 0, 'pgsql');
+    $type = isset($cfg['db']['type']) ? $cfg['db']['type'] : 'mysqli';
+    if ($type === 'pgsql' && !di_pg_dump_bin()) {
+        return array(false, 0, 'pgsql-nodump'); // sin pg_dump no podemos volcar PG
     }
     $fh = @fopen($path, 'wb');
     if (!$fh) {
         return array(false, 0, 'no se pudo escribir ' . $path);
     }
-    list($ok, $err, $bytes) = di_dump_mysql_to($cfg, $fh);
+    list($ok, $err, $bytes) = di_dump_db_to($cfg, $fh);
     fclose($fh);
     if (!$ok) {
         @unlink($path);
@@ -2801,6 +2915,8 @@ function di_compare_chunk($cfg, $offset)
     }
     $zip->close();
 
+    $state['next'] = $end;       // para reanudar la verificación tras un F5
+    $state['total'] = $num;
     di_ensure_tmp();
     @file_put_contents(di_repair_state_path(), json_encode($state));
     @chmod(di_repair_state_path(), 0600);
@@ -2876,6 +2992,114 @@ function di_repair_apply($cfg, $files)
     return array($ok, $fail);
 }
 
+/** Conjunto de rutas (relativas a htdocs) presentes en el paquete oficial. */
+function di_official_pathset($cfg)
+{
+    $set = array();
+    $zip = new ZipArchive();
+    if ($zip->open($cfg['zip']) !== true) {
+        return $set;
+    }
+    $prefix = isset($cfg['prefix']) ? $cfg['prefix'] : '';
+    $plen = strlen($prefix);
+    $num = $zip->numFiles;
+    for ($i = 0; $i < $num; $i++) {
+        $name = $zip->getNameIndex($i);
+        if ($name === false || strncmp($name, $prefix, $plen) !== 0) {
+            continue;
+        }
+        $rel = substr($name, $plen);
+        if ($rel === '' || substr($rel, -1) === '/') {
+            continue;
+        }
+        $set[$rel] = 1;
+    }
+    $zip->close();
+    return $set;
+}
+
+/**
+ * Escanea la instalación en busca de ficheros que NO están en el paquete oficial
+ * (posible manipulación / inyección). Excluye datos y config del usuario, el propio
+ * instalador y sus temporales. Devuelve la lista de rutas relativas "sobrantes".
+ */
+function di_scan_extras($cfg)
+{
+    $official = di_official_pathset($cfg);
+    $target = $cfg['target'];
+    $rt = realpath($target);
+    if ($rt === false) {
+        return array();
+    }
+    $self = basename(__FILE__);
+    $skipTop = array('conf', 'custom', 'documents', 'install',
+        basename(DI_TMPDIR), '__doli_extract__');
+    $extras = array();
+    $cap = 5000; // límite de seguridad para no desbordar
+    try {
+        $it = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($rt, FilesystemIterator::SKIP_DOTS | FilesystemIterator::UNIX_PATHS),
+            RecursiveIteratorIterator::LEAVES_ONLY
+        );
+    } catch (Exception $e) {
+        return array();
+    }
+    foreach ($it as $file) {
+        if (!$file->isFile()) {
+            continue;
+        }
+        $abs = str_replace('\\', '/', $file->getPathname());
+        $rel = ltrim(substr($abs, strlen(str_replace('\\', '/', $rt))), '/');
+        if ($rel === '') {
+            continue;
+        }
+        $top = strpos($rel, '/') === false ? $rel : substr($rel, 0, strpos($rel, '/'));
+        if (in_array($top, $skipTop, true)) {
+            continue; // datos/config del usuario o temporales del instalador
+        }
+        if ($rel === $self || di_repair_skip($rel)) {
+            continue;
+        }
+        if (strpos($rel, 'easydoliinstaller-rollback-') !== false) {
+            continue; // nuestro propio dump
+        }
+        // Artefactos del propio instalador, no "manipulación": el paquete .zip y copias.
+        if (strpos($rel, '/') === false && (preg_match('/^dolibarr-.*\.zip$/i', $rel) || preg_match('/\.zip$/i', $rel) && $rel === basename((string) ($cfg['zip'] ?? '')))) {
+            continue;
+        }
+        if (!isset($official[$rel])) {
+            $extras[] = $rel;
+            if (count($extras) >= $cap) {
+                break;
+            }
+        }
+    }
+    return $extras;
+}
+
+/** Borra los ficheros sobrantes indicados (tras copiarlos al zip de afectados). [ok, fail]. */
+function di_repair_delete_extras($cfg, $files)
+{
+    $ok = 0;
+    $fail = 0;
+    $bdir = realpath($cfg['target']);
+    foreach ($files as $rel) {
+        $p = $cfg['target'] . '/' . $rel;
+        $rp = realpath($p);
+        // Defensa en profundidad: solo borrar dentro del destino.
+        if ($rp === false || $bdir === false || strncmp($rp, $bdir, strlen($bdir)) !== 0) {
+            $fail++;
+            continue;
+        }
+        if (@unlink($p)) {
+            $ok++;
+        } else {
+            $fail++;
+        }
+    }
+    return array($ok, $fail);
+}
+
 /** Extrae un mensaje de error legible del HTML devuelto por un paso. */
 function di_extract_error($html)
 {
@@ -2936,8 +3160,8 @@ if (isset($_GET['ajax'])) {
             exit;
         }
         $res = di_repair_result();
-        $files = $res ? array_merge($res['modified'] ?? array(), $res['missing'] ?? array()) : array();
-        // 'missing' no existe en disco; el zip de copia solo incluye los presentes (modified).
+        $files = $res ? array_merge($res['modified'] ?? array(), $res['missing'] ?? array(), $res['extra'] ?? array()) : array();
+        // 'missing' no existe en disco; el zip de copia solo incluye los presentes (modified + extra).
         $path = $cfg ? di_repair_backup_zip($cfg, $files) : null;
         if (!$path) {
             http_response_code(404);
@@ -2959,7 +3183,7 @@ if (isset($_GET['ajax'])) {
 
     // Anti-CSRF / anti-secuestro: las acciones mutantes exigen el token de la instalación
     // (cookie puesta en el arranque). 'versiones' no toca estado y queda exenta.
-    if (in_array($ajax, array('extraer', 'instalar', 'descargar', 'limpiar', 'migrar', 'comparar', 'reparar'), true) && !di_token_ok($cfg)) {
+    if (in_array($ajax, array('extraer', 'instalar', 'descargar', 'limpiar', 'migrar', 'comparar', 'reparar', 'extras', 'delextras'), true) && !di_token_ok($cfg)) {
         http_response_code(403);
         echo json_encode(array('error' => di_t('e_forbidden')));
         exit;
@@ -3084,6 +3308,41 @@ if (isset($_GET['ajax'])) {
             @unlink(di_repair_state_path()); // empezar limpio
         }
         echo json_encode(di_compare_chunk($cfg, $offset));
+        exit;
+    }
+
+    if ($ajax === 'extras') {
+        if (!$cfg) {
+            echo json_encode(array('error' => di_t('e_noconfig')));
+            exit;
+        }
+        $extras = di_scan_extras($cfg);
+        $state = di_repair_result();
+        if (!is_array($state)) {
+            $state = array();
+        }
+        $state['extra'] = $extras;
+        di_ensure_tmp();
+        @file_put_contents(di_repair_state_path(), json_encode($state));
+        @chmod(di_repair_state_path(), 0600);
+        echo json_encode(array('extra' => count($extras)));
+        exit;
+    }
+
+    if ($ajax === 'delextras') {
+        if (!$cfg) {
+            echo json_encode(array('ok' => false, 'msg' => di_t('e_noconfig')));
+            exit;
+        }
+        $state = di_repair_result();
+        $extras = ($state && !empty($state['extra'])) ? $state['extra'] : array();
+        if (empty($extras)) {
+            echo json_encode(array('ok' => true, 'msg' => di_t('ir_noextra')));
+            exit;
+        }
+        di_repair_backup_zip($cfg, $extras); // copia previa antes de borrar
+        list($ok, $fail) = di_repair_delete_extras($cfg, $extras);
+        echo json_encode(array('ok' => $fail === 0, 'deleted' => $ok, 'failed' => $fail, 'msg' => di_t('ir_extradel', array('{ok}' => $ok, '{fail}' => $fail))));
         exit;
     }
 
@@ -4155,6 +4414,16 @@ if ($paso === 'verificar') {
         exit;
     }
     $GLOBALS['di_force_mode'] = 'repair';
+    // Reanudación tras F5: si ya hay progreso parcial, continuar desde ahí.
+    $rs = di_repair_result();
+    $startOff = 0;
+    if (is_array($rs) && isset($rs['next'], $rs['total']) && (int) $rs['total'] > 0) {
+        if ((int) $rs['next'] >= (int) $rs['total']) {
+            header('Location: ' . DI_SELF . '?paso=informe');
+            exit;
+        }
+        $startOff = (int) $rs['next'];
+    }
     di_header(di_t('st_verify'), 'verificar');
     ?>
 <div class="win"><div class="t"><?php echo di_h(di_t('vf_title')); ?></div><div class="b">
@@ -4165,7 +4434,8 @@ if ($paso === 'verificar') {
 <a class="btn" id="next" style="display:none" href="?paso=informe"><?php echo di_h(di_t('b_continue')); ?></a></div>
 </div></div>
 <script>
-  var T=<?php echo json_encode(array('start' => di_t('vf_start'), 'chk' => di_t('vf_chk'), 'comp' => di_t('vf_comp'), 'err' => di_t('err'), 'retry' => di_t('dl_retry'), 'net' => di_t('net'), 'rb' => di_t('retrying_block'), 'nf' => di_t('net_fail'))); ?>;
+  var T=<?php echo json_encode(array('start' => di_t('vf_start'), 'chk' => di_t('vf_chk'), 'comp' => di_t('vf_comp'), 'extras' => di_t('vf_extras'), 'err' => di_t('err'), 'retry' => di_t('dl_retry'), 'net' => di_t('net'), 'rb' => di_t('retrying_block'), 'nf' => di_t('net_fail'))); ?>;
+  var START=<?php echo (int) $startOff; ?>;
   var log=document.getElementById('log'),bar=document.getElementById('bar'),pct=document.getElementById('pct'),pbar=document.getElementById('pbar'),
       errb=document.getElementById('err'),next=document.getElementById('next'),cur=null;
   function pad(n,w){n=''+n;while(n.length<w)n='0'+n;return n;}
@@ -4182,12 +4452,19 @@ if ($paso === 'verificar') {
         var p=d.total?Math.round(d.next/d.total*100):100;
         bar.style.width=p+'%';pct.textContent=p+'%';pbar.setAttribute('aria-valuenow',p);
         put(ts()+'  '+T.chk.replace('{c}',d.checked).replace('{m}',d.modified).replace('{k}',d.missing)+'  '+p+'%');
-        if(d.done){ put(ts()+'  '+T.comp.replace('{m}',d.modified).replace('{k}',d.missing)); next.style.display='inline-block'; setTimeout(function(){location.href='?paso=informe';},800); }
+        if(d.done){
+          put(ts()+'  '+T.comp.replace('{m}',d.modified).replace('{k}',d.missing));
+          put(ts()+'  '+T.extras);
+          fetch('<?php echo DI_SELF; ?>?ajax=extras',{cache:'no-store'})
+            .then(function(r){return r.json();})
+            .then(function(x){ next.style.display='inline-block'; setTimeout(function(){location.href='?paso=informe';},800); })
+            .catch(function(){ next.style.display='inline-block'; setTimeout(function(){location.href='?paso=informe';},800); });
+        }
         else step(d.next,0);
       })
       .catch(function(e){ if(tries<5){ put(ts()+'  '+T.rb.replace('{off}',offset).replace('{try}',tries+1)); setTimeout(function(){step(offset,tries+1);},1500*(tries+1)); } else { put('  !! '+T.net+' '+e); fail(T.nf.replace('{off}',offset)+' '+e,offset); } });
   }
-  step(0,0);
+  step(START,0);
 </script>
 <?php
     di_footer();
@@ -4204,60 +4481,91 @@ if ($paso === 'informe') {
     $res = di_repair_result();
     $modified = $res['modified'] ?? array();
     $missing = $res['missing'] ?? array();
+    $extra = $res['extra'] ?? array();
     $checked = $res['checked'] ?? 0;
-    $total = count($modified) + count($missing);
+    $restore = count($modified) + count($missing);
+    $nExtra = count($extra);
     $base = rtrim($cfg['baseurl'] ?? di_self_base_url(), '/');
+    // Aviso si el paquete elegido NO coincide con la versión instalada (inflaría el diff).
+    $pkgVer = di_zip_version($cfg['zip'] ?? '', $cfg['prefix'] ?? '');
+    if (!$pkgVer && !empty($cfg['download_version'])) {
+        $pkgVer = $cfg['download_version'];
+    }
+    $instVer = di_fs_version(DI_DIR);
+    $verMismatch = ($pkgVer && $instVer && $pkgVer !== $instVer);
     di_header(di_t('st_report'), 'informe');
     ?>
 <div class="win"><div class="t"><?php echo di_h(di_t('ir_title')); ?></div><div class="b">
+<?php if ($verMismatch) {
+        echo '<div class="msg warn">' . di_h(di_t('ir_vermismatch', array('{pkg}' => $pkgVer, '{inst}' => $instVer))) . '</div>';
+    } ?>
 <table class="kv">
     <tr><td class="s"><span class="tagOK">[ OK ]</span></td><td><?php echo di_h(di_t('ir_checked', array('{n}' => $checked))); ?></td></tr>
-    <tr><td class="s"><?php echo $total ? '<span class="tagWARN">[diff]</span>' : '<span class="tagOK">[ OK ]</span>'; ?></td><td><?php echo di_h(di_t('ir_summary', array('{m}' => count($modified), '{k}' => count($missing)))); ?></td></tr>
+    <tr><td class="s"><?php echo $restore ? '<span class="tagWARN">[diff]</span>' : '<span class="tagOK">[ OK ]</span>'; ?></td><td><?php echo di_h(di_t('ir_summary', array('{m}' => count($modified), '{k}' => count($missing)))); ?></td></tr>
+    <tr><td class="s"><?php echo $nExtra ? '<span class="tagWARN">[+ ' . $nExtra . ']</span>' : '<span class="tagOK">[ OK ]</span>'; ?></td><td><?php echo di_h(di_t('ir_extrasum', array('{n}' => $nExtra))); ?></td></tr>
 </table>
-<?php if ($total === 0) { ?>
+<?php if ($restore === 0 && $nExtra === 0) { ?>
     <div class="msg ok" style="margin-top:12px"><?php echo di_h(di_t('ir_clean')); ?></div>
     <div class="row"><span></span><a class="btn" href="<?php echo di_h($base); ?>/"><?php echo di_h(di_t('b_open')); ?> &gt;</a></div>
 <?php } else {
         $show = array_slice(array_merge(
             array_map(function ($f) {
-                return array('MOD', $f);
+                return array('~', $f);
             }, $modified),
             array_map(function ($f) {
-                return array('DEL', $f);
-            }, $missing)
-        ), 0, 600);
+                return array('+', $f);
+            }, $missing),
+            array_map(function ($f) {
+                return array('!', $f);
+            }, $extra)
+        ), 0, 800);
+        $tot = $restore + $nExtra;
         ?>
     <pre class="log" style="height:280px"><?php
         foreach ($show as $row) {
-            echo ($row[0] === 'MOD' ? '~ ' : '+ ') . di_h($row[1]) . "\n";
+            echo $row[0] . ' ' . di_h($row[1]) . "\n";
         }
-        if ($total > count($show)) {
-            echo '... (' . ($total - count($show)) . ' ' . di_h(di_t('ir_more')) . ")\n";
+        if ($tot > count($show)) {
+            echo '... (' . ($tot - count($show)) . ' ' . di_h(di_t('ir_more')) . ")\n";
         }
     ?></pre>
     <div class="hint"><?php echo di_h(di_t('ir_legend')); ?></div>
     <div class="row">
         <a class="btn dim" href="?ajax=repairzip" target="_blank" rel="noopener"><?php echo di_h(di_t('ir_dlzip')); ?></a>
-        <button class="btn amber" id="dorep" onclick="reparar()"><?php echo di_h(di_t('ir_repair', array('{n}' => $total))); ?></button>
+        <span style="display:flex;gap:10px;flex-wrap:wrap">
+        <?php if ($restore > 0) { ?>
+            <button class="btn amber" id="dorep" onclick="reparar()"><?php echo di_h(di_t('ir_repair', array('{n}' => $restore))); ?></button>
+        <?php } ?>
+        <?php if ($nExtra > 0) { ?>
+            <button class="btn" id="dodel" onclick="borrarExtras()"><?php echo di_h(di_t('ir_delextra', array('{n}' => $nExtra))); ?></button>
+        <?php } ?>
+        </span>
     </div>
-    <pre class="log" id="rlog" style="height:80px;margin-top:12px;display:none"></pre>
+    <pre class="log" id="rlog" style="height:90px;margin-top:12px;display:none"></pre>
     <div class="row" id="donerow" style="display:none"><span></span><a class="btn" href="<?php echo di_h($base); ?>/"><?php echo di_h(di_t('b_open')); ?> &gt;</a> <button class="btn dim" onclick="limpiar()"><?php echo di_h(di_t('ir_clean_btn')); ?></button></div>
 <?php } ?>
 </div></div>
-<?php if ($total > 0) { ?>
+<?php if ($restore > 0 || $nExtra > 0) { ?>
 <script>
-  var T=<?php echo json_encode(array('confirm' => di_t('ir_confirm', array('{n}' => $total)), 'working' => di_t('ir_working'), 'done' => di_t('ir_done'), 'fail' => di_t('ir_fail'), 'cleaning' => di_t('fn_cleaning'))); ?>;
+  var T=<?php echo json_encode(array(
+        'confirm' => di_t('ir_confirm', array('{n}' => $restore)),
+        'confirmdel' => di_t('ir_confirmdel', array('{n}' => $nExtra)),
+        'working' => di_t('ir_working'), 'deleting' => di_t('ir_deleting'),
+        'done' => di_t('ir_done'), 'fail' => di_t('ir_fail'),
+    )); ?>;
   var rlog=document.getElementById('rlog'),donerow=document.getElementById('donerow'),appurl=<?php echo json_encode($base . '/'); ?>;
   function rput(s){ rlog.style.display='block'; rlog.textContent+=s+'\n'; rlog.scrollTop=rlog.scrollHeight; }
-  function reparar(){
-    if(!confirm(T.confirm))return;
-    var b=document.getElementById('dorep');b.disabled=true;b.textContent=T.working;
-    rput(T.working);
-    fetch('<?php echo DI_SELF; ?>?ajax=reparar',{method:'POST',cache:'no-store'})
+  function act(url,btnId,confirmMsg,workMsg){
+    if(!confirm(confirmMsg))return;
+    var b=document.getElementById(btnId); if(b){b.disabled=true;b.textContent=workMsg;}
+    rput(workMsg);
+    fetch('<?php echo DI_SELF; ?>?ajax='+url,{method:'POST',cache:'no-store'})
       .then(function(r){return r.json();})
-      .then(function(d){ if(d.ok){rput(d.msg||T.done);donerow.style.display='flex';}else{rput((d.msg||T.fail));b.disabled=false;b.textContent='retry';} })
-      .catch(function(e){ rput(T.fail+' '+e);b.disabled=false; });
+      .then(function(d){ rput(d.msg||(d.ok?T.done:T.fail)); if(d.ok){donerow.style.display='flex';} else if(b){b.disabled=false;b.textContent='retry';} })
+      .catch(function(e){ rput(T.fail+' '+e); if(b){b.disabled=false;} });
   }
+  function reparar(){ act('reparar','dorep',T.confirm,T.working); }
+  function borrarExtras(){ act('delextras','dodel',T.confirmdel,T.deleting); }
   function limpiar(){
     fetch('<?php echo DI_SELF; ?>?ajax=limpiar',{method:'POST',cache:'no-store'})
       .then(function(r){return r.json();}).then(function(d){ if(d&&d.appurl)appurl=d.appurl; location.href=appurl; })
