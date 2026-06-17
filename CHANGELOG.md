@@ -2,6 +2,13 @@
 
 Todos los cambios notables de EasyDoliInstaller.
 
+## [1.3.0] - 2026-06-17
+
+### Añadido
+- **Descarga autónoma del paquete**: en el formulario puedes elegir "descargar versión" en lugar de subir un ZIP. El instalador baja el paquete oficial desde SourceForge **por bloques HTTP Range** con barra de progreso real (página `descargar`), valida el ZIP y continúa solo. Ahora basta con subir **un único archivo**.
+- Lista de versiones obtenida en vivo de la API de GitHub (releases estables), con caché de 1 h y lista de respaldo offline; opción de escribir una versión exacta a mano.
+- Probado e2e: descarga de 22.0.5 (85 MB en ~28s) + instalación completa (276 tablas, admin, lock) en MySQL.
+
 ## [1.2.0] - 2026-06-17
 
 ### Añadido

@@ -18,9 +18,10 @@
  *
  *  USO
  *  ---
- *    - Sube a tu hosting (en la carpeta que será la raíz de Dolibarr):
+ *    - Sube a tu hosting (en la carpeta que será la raíz de Dolibarr) SOLO:
  *          easydoliinstaller.php   (este archivo)
- *          dolibarr-XX.Y.Z.zip     (el paquete oficial de Dolibarr)
+ *      Opcionalmente, junto a un dolibarr-XX.Y.Z.zip si prefieres no descargar:
+ *      el asistente puede DESCARGAR la versión que elijas automáticamente.
  *    - Abre en el navegador:  https://tu-dominio/easydoliinstaller.php
  *    - Sigue el asistente. Al terminar, el instalador se borra solo.
  *
@@ -39,7 +40,7 @@
 @ignore_user_abort(true);
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE & ~E_WARNING);
 
-define('DI_VERSION', '1.2.0');
+define('DI_VERSION', '1.3.0');
 define('DI_DIR', __DIR__);
 define('DI_SELF', basename(__FILE__));
 define('DI_TMPDIR', DI_DIR . '/__doli_installer_tmp__');
@@ -209,6 +210,163 @@ function di_detect_prefix($zipPath)
         return ''; // caso 3: el ZIP ya es htdocs
     }
     return null; // caso 4
+}
+
+/* ===========================================================================
+ *  DESCARGA AUTOMÁTICA DE DOLIBARR (SourceForge) + LISTADO DE VERSIONES (GitHub)
+ * ======================================================================== */
+
+/** GET remoto sencillo (GitHub API, etc.). Devuelve el body o null. */
+function di_remote_get($url, $timeout = 8)
+{
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, array(
+            CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 8,
+            CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => 6,
+            CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_USERAGENT => 'EasyDoliInstaller/' . DI_VERSION,
+        ));
+        $b = curl_exec($ch);
+        $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        return ($b !== false && $code >= 200 && $code < 400) ? $b : null;
+    }
+    if (filter_var(ini_get('allow_url_fopen'), FILTER_VALIDATE_BOOLEAN)) {
+        $ctx = stream_context_create(array(
+            'http' => array('timeout' => $timeout, 'header' => "User-Agent: EasyDoliInstaller\r\n"),
+            'ssl' => array('verify_peer' => false, 'verify_peer_name' => false),
+        ));
+        $b = @file_get_contents($url, false, $ctx);
+        return $b === false ? null : $b;
+    }
+    return null;
+}
+
+/** Lista de versiones estables (desc). Fuente: GitHub releases, con caché 1h y fallback. */
+function di_fetch_versions()
+{
+    di_ensure_tmp();
+    $cache = DI_TMPDIR . '/versions.json';
+    if (is_file($cache) && (time() - filemtime($cache) < 3600)) {
+        $v = json_decode(@file_get_contents($cache), true);
+        if (is_array($v) && $v) {
+            return $v;
+        }
+    }
+    $body = di_remote_get('https://api.github.com/repos/Dolibarr/dolibarr/releases?per_page=100');
+    $vers = array();
+    if ($body) {
+        $data = json_decode($body, true);
+        if (is_array($data)) {
+            foreach ($data as $rel) {
+                if (!empty($rel['prerelease'])) {
+                    continue;
+                }
+                $tag = isset($rel['tag_name']) ? $rel['tag_name'] : '';
+                if (preg_match('/^\d+\.\d+\.\d+$/', $tag)) {
+                    $vers[] = $tag;
+                }
+            }
+        }
+    }
+    if ($vers) {
+        $vers = array_values(array_unique($vers));
+        usort($vers, function ($a, $b) {
+            return version_compare($b, $a);
+        });
+        @file_put_contents($cache, json_encode($vers));
+        return $vers;
+    }
+    return di_fallback_versions();
+}
+
+/** Lista de respaldo si no hay conectividad con GitHub. */
+function di_fallback_versions()
+{
+    return array('23.0.3', '22.0.5', '21.0.1', '20.0.3', '19.0.4', '18.0.10');
+}
+
+/** Versión saneada -> x.y.z o null. */
+function di_sanitize_version($v)
+{
+    $v = preg_replace('#[^0-9.]#', '', (string) $v);
+    return preg_match('/^\d+\.\d+\.\d+$/', $v) ? $v : null;
+}
+
+/** URL de descarga del paquete oficial en SourceForge. */
+function di_download_url($ver)
+{
+    return 'https://downloads.sourceforge.net/project/dolibarr/Dolibarr%20ERP-CRM/'
+        . rawurlencode($ver) . '/dolibarr-' . rawurlencode($ver) . '.zip';
+}
+
+/** Ruta local destino del ZIP descargado. */
+function di_download_target($cfg)
+{
+    return DI_DIR . '/dolibarr-' . $cfg['download_version'] . '.zip';
+}
+
+/**
+ * Descarga un bloque del ZIP por HTTP Range y lo añade al archivo. Devuelve
+ * [next,total,done,received] o ['error'=>...]. Requiere cURL.
+ */
+function di_download_chunk($cfg, $offset)
+{
+    if (!function_exists('curl_init')) {
+        return array('error' => 'La descarga automática requiere la extensión cURL.');
+    }
+    $url = di_download_url($cfg['download_version']);
+    $file = di_download_target($cfg);
+    $chunkSize = 4 * 1024 * 1024; // 4 MB por petición
+    $end = $offset + $chunkSize - 1;
+
+    $fp = @fopen($file, $offset === 0 ? 'wb' : 'ab');
+    if (!$fp) {
+        return array('error' => 'No se puede escribir el archivo de descarga: ' . $file);
+    }
+
+    $total = 0;
+    $ch = curl_init($url);
+    curl_setopt_array($ch, array(
+        CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 8,
+        CURLOPT_RANGE => $offset . '-' . $end,
+        CURLOPT_FILE => $fp,
+        CURLOPT_CONNECTTIMEOUT => 20, CURLOPT_TIMEOUT => 300,
+        CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => 0,
+        CURLOPT_USERAGENT => 'EasyDoliInstaller/' . DI_VERSION,
+        CURLOPT_HEADERFUNCTION => function ($c, $h) use (&$total) {
+            if (stripos($h, 'Content-Range:') === 0 && preg_match('#/(\d+)#', $h, $m)) {
+                $total = (int) $m[1];
+            }
+            return strlen($h);
+        },
+    ));
+    curl_exec($ch);
+    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_errno($ch) ? curl_error($ch) : '';
+    $dl = (int) curl_getinfo($ch, CURLINFO_SIZE_DOWNLOAD);
+    curl_close($ch);
+    fclose($fp);
+
+    if ($err) {
+        return array('error' => 'Descarga fallida: ' . $err);
+    }
+    if ($code === 200) {
+        // El mirror ignoró el Range y envió el archivo completo en esta petición.
+        clearstatcache(true, $file);
+        $sz = filesize($file);
+        return array('next' => $sz, 'total' => $sz, 'done' => true, 'received' => $dl);
+    }
+    if ($code !== 206) {
+        return array('error' => 'Respuesta inesperada del servidor de descargas (HTTP ' . $code . ').');
+    }
+    if ($total <= 0) {
+        $total = $offset + $dl;
+    }
+    $next = $offset + $dl;
+    $done = ($next >= $total) || ($dl <= 0);
+    return array('next' => $next, 'total' => $total, 'done' => $done, 'received' => $dl);
 }
 
 /** Esquema + host + subdirectorio donde vive el instalador (sin barra final). */
@@ -1057,6 +1215,39 @@ if (isset($_GET['ajax'])) {
     $ajax = $_GET['ajax'];
     $cfg = di_load_config();
 
+    if ($ajax === 'versiones') {
+        echo json_encode(array('versions' => di_fetch_versions()));
+        exit;
+    }
+
+    if ($ajax === 'descargar') {
+        if (!$cfg || empty($cfg['download_version'])) {
+            echo json_encode(array('error' => 'No hay versión seleccionada para descargar.'));
+            exit;
+        }
+        $offset = isset($_GET['offset']) ? (int) $_GET['offset'] : 0;
+        $r = di_download_chunk($cfg, $offset);
+        if (isset($r['error'])) {
+            echo json_encode($r);
+            exit;
+        }
+        if ($r['done']) {
+            // El ZIP ya está local: validamos y fijamos zip + prefix en la config.
+            $file = di_download_target($cfg);
+            $prefix = di_detect_prefix($file);
+            if ($prefix === null) {
+                @unlink($file);
+                echo json_encode(array('error' => 'El ZIP descargado no es un paquete Dolibarr válido (descarga corrupta). Reinténtalo.'));
+                exit;
+            }
+            $cfg['zip'] = $file;
+            $cfg['prefix'] = $prefix;
+            di_save_config($cfg);
+        }
+        echo json_encode($r);
+        exit;
+    }
+
     if ($ajax === 'extraer') {
         if (!$cfg) {
             echo json_encode(array('error' => 'No hay configuración guardada.'));
@@ -1134,13 +1325,24 @@ if (isset($_GET['ajax'])) {
 
 $formError = null;
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '') === 'guardar') {
-    // ZIP elegido en el formulario (si solo hay uno, se autoselecciona).
+    // Origen del paquete: 'local' (ZIP existente) o 'download' (descargar versión).
     $allZips = di_find_zips();
-    $zip = di_resolve_zip($_POST['zipfile'] ?? '');
-    if (!$zip && count($allZips) === 1) {
-        $zip = $allZips[0];
+    $pkgsource = (($_POST['pkgsource'] ?? '') === 'download') ? 'download' : 'local';
+    $zip = null;
+    $prefix = null;
+    $downloadVer = null;
+    if ($pkgsource === 'download') {
+        $downloadVer = di_sanitize_version($_POST['download_version_manual'] ?? '');
+        if (!$downloadVer) {
+            $downloadVer = di_sanitize_version($_POST['download_version'] ?? '');
+        }
+    } else {
+        $zip = di_resolve_zip($_POST['zipfile'] ?? '');
+        if (!$zip && count($allZips) === 1) {
+            $zip = $allZips[0];
+        }
+        $prefix = $zip ? di_detect_prefix($zip) : null;
     }
-    $prefix = $zip ? di_detect_prefix($zip) : null;
 
     $subpath = trim($_POST['subpath'] ?? '');
     $subpath = trim(str_replace('\\', '/', $subpath), '/');
@@ -1163,6 +1365,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '')
         'mode' => 'full',
         'zip' => $zip,
         'prefix' => $prefix,
+        'download_version' => $downloadVer,
         'subpath' => $subpath,
         'target' => $target,
         'baseurl' => $baseurl,
@@ -1188,9 +1391,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '')
 
     // Validaciones
     $errs = array();
-    if (!$zip) {
+    if ($pkgsource === 'download') {
+        if (!$downloadVer) {
+            $errs[] = 'Selecciona o escribe una versión válida (formato x.y.z) para descargar.';
+        }
+    } elseif (!$zip) {
         if (empty($allZips)) {
-            $errs[] = 'No se encontró ningún ZIP de Dolibarr junto a installer.php.';
+            $errs[] = 'No hay ningún ZIP local. Sube un dolibarr-*.zip o elige "Descargar versión".';
         } else {
             $errs[] = 'Selecciona cuál de los ' . count($allZips) . ' paquetes ZIP quieres instalar.';
         }
@@ -1231,7 +1438,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '')
         $formError = $errs;
     } else {
         di_save_config($cfg);
-        header('Location: ' . DI_SELF . '?paso=extraer');
+        header('Location: ' . DI_SELF . '?paso=' . ($pkgsource === 'download' ? 'descargar' : 'extraer'));
         exit;
     }
 }
@@ -1241,25 +1448,39 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '')
  * ------------------------------------------------------------------------- */
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '') === 'guardar_simple') {
     $allZips = di_find_zips();
-    $zip = di_resolve_zip($_POST['zipfile'] ?? '');
-    if (!$zip && count($allZips) === 1) {
-        $zip = $allZips[0];
+    $pkgsource = (($_POST['pkgsource'] ?? '') === 'download') ? 'download' : 'local';
+    $zip = null;
+    $prefix = null;
+    $downloadVer = null;
+    if ($pkgsource === 'download') {
+        $downloadVer = di_sanitize_version($_POST['download_version_manual'] ?? '');
+        if (!$downloadVer) {
+            $downloadVer = di_sanitize_version($_POST['download_version'] ?? '');
+        }
+    } else {
+        $zip = di_resolve_zip($_POST['zipfile'] ?? '');
+        if (!$zip && count($allZips) === 1) {
+            $zip = $allZips[0];
+        }
+        $prefix = $zip ? di_detect_prefix($zip) : null;
     }
-    $prefix = $zip ? di_detect_prefix($zip) : null;
 
     $subpath = trim(str_replace('\\', '/', $_POST['subpath'] ?? ''), '/');
     $subpath = preg_replace('#[^A-Za-z0-9_\-/]#', '', $subpath);
     $target = DI_DIR . ($subpath !== '' ? '/' . $subpath : '');
     $baseurl = di_self_base_url() . ($subpath !== '' ? '/' . $subpath : '');
     if (!empty($_POST['baseurl'])) {
-        // Anti-SSRF: solo se acepta si apunta al propio host (o localhost).
         $baseurl = di_validate_baseurl($_POST['baseurl'], $baseurl);
     }
 
     $errs = array();
-    if (!$zip) {
+    if ($pkgsource === 'download') {
+        if (!$downloadVer) {
+            $errs[] = 'Selecciona o escribe una versión válida (x.y.z) para descargar.';
+        }
+    } elseif (!$zip) {
         $errs[] = empty($allZips)
-            ? 'No se encontró ningún ZIP de Dolibarr junto a installer.php.'
+            ? 'No hay ZIP local. Sube un dolibarr-*.zip o elige "Descargar versión".'
             : 'Selecciona cuál de los ' . count($allZips) . ' paquetes ZIP quieres extraer.';
     } elseif (!$prefix) {
         $errs[] = 'El ZIP "' . basename($zip) . '" no parece un paquete oficial de Dolibarr (no contiene "*/htdocs/").';
@@ -1273,11 +1494,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '')
             'mode' => 'simple',
             'zip' => $zip,
             'prefix' => $prefix,
+            'download_version' => $downloadVer,
             'subpath' => $subpath,
             'target' => $target,
             'baseurl' => $baseurl,
         ));
-        header('Location: ' . DI_SELF . '?paso=extraer');
+        header('Location: ' . DI_SELF . '?paso=' . ($pkgsource === 'download' ? 'descargar' : 'extraer'));
         exit;
     }
 }
@@ -1515,6 +1737,72 @@ function di_footer()
 <?php
 }
 
+/**
+ * Selector de origen del paquete (compartido por los dos formularios):
+ * usar un ZIP local o descargar una versión de Dolibarr. Emite su propio <div class="win">.
+ */
+function di_package_picker($prev, $zips)
+{
+    $prevZip = basename((string) (($prev['zip'] ?? '')));
+    $prevVer = (string) ($prev['download_version'] ?? '');
+    $hasCurl = function_exists('curl_init');
+    // Por defecto: local si hay ZIPs y no había versión elegida; si no, descargar.
+    $src = (!empty($zips) && $prevVer === '') ? 'local' : 'download';
+    if (empty($zips) && !$hasCurl) {
+        $src = 'local';
+    }
+    ?>
+<div class="win"><div class="t">PAQUETE DE DOLIBARR</div><div class="b">
+    <div class="chk"><input type="radio" name="pkgsource" id="src_local" value="local" <?php echo $src === 'local' ? 'checked' : ''; ?>> usar un ZIP que ya está aquí<?php echo empty($zips) ? ' <span class="dim">(no hay ninguno)</span>' : ''; ?></div>
+    <div class="chk"><input type="radio" name="pkgsource" id="src_dl" value="download" <?php echo $src === 'download' ? 'checked' : ''; ?> <?php echo $hasCurl ? '' : 'disabled'; ?>> descargar una versión automáticamente<?php echo $hasCurl ? '' : ' <span class="dim">(requiere cURL)</span>'; ?></div>
+
+    <div id="blk_local" style="margin-top:12px">
+    <?php if (empty($zips)) { ?>
+        <div class="dim">No hay ningún .zip junto al instalador.</div>
+    <?php } elseif (count($zips) === 1) { ?>
+        <input type="hidden" name="zipfile" value="<?php echo di_h(basename($zips[0])); ?>">
+        <div>ZIP local: <span class="amber"><?php echo di_h(basename($zips[0])); ?></span> <span class="dim">(<?php echo round(filesize($zips[0]) / 1048576); ?> MB)</span></div>
+    <?php } else { ?>
+        <label class="f">elige ZIP local (<?php echo count($zips); ?> detectados)</label>
+        <select name="zipfile">
+            <?php foreach ($zips as $z) {
+                $bn = basename($z);
+                echo '<option value="' . di_h($bn) . '"' . ($prevZip === $bn ? ' selected' : '') . '>' . di_h($bn) . ' — ' . round(filesize($z) / 1048576) . ' MB</option>';
+            } ?>
+        </select>
+    <?php } ?>
+    </div>
+
+    <div id="blk_dl" style="margin-top:12px">
+        <label class="f">versión a descargar (paquete oficial de sourceforge.net)</label>
+        <select name="download_version" id="dlver">
+            <?php foreach (di_fallback_versions() as $v) {
+                echo '<option value="' . di_h($v) . '"' . ($prevVer === $v ? ' selected' : '') . '>' . di_h($v) . '</option>';
+            } ?>
+        </select>
+        <label class="f">o escribe una versión exacta (x.y.z)</label>
+        <input type="text" name="download_version_manual" value="<?php echo di_h($prevVer); ?>" placeholder="(opcional)">
+        <div class="hint">~85 MB. Se descarga al servidor por bloques, con barra de progreso real.</div>
+    </div>
+</div></div>
+<script>
+  (function(){
+    var rl=document.getElementById('src_local'),rd=document.getElementById('src_dl'),
+        bl=document.getElementById('blk_local'),bd=document.getElementById('blk_dl');
+    function tog(){var dl=rd.checked;bd.style.display=dl?'block':'none';bl.style.display=dl?'none':'block';}
+    rl.addEventListener('change',tog);rd.addEventListener('change',tog);tog();
+    // Refresca la lista de versiones en vivo desde GitHub (no bloquea la página).
+    fetch('<?php echo DI_SELF; ?>?ajax=versiones',{cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(d){ if(!d||!d.versions||!d.versions.length)return;
+        var s=document.getElementById('dlver'),cur=s.value;s.innerHTML='';
+        d.versions.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;if(v===cur)o.selected=true;s.appendChild(o);});
+      }).catch(function(){});
+  })();
+</script>
+<?php
+}
+
 /* ----- Guarda de "ya instalado" ----- */
 $cfgExisting = di_load_config();
 
@@ -1533,7 +1821,7 @@ if ($cfgExisting && di_already_installed($cfgExisting) && di_find_lock($cfgExist
 
 // La guarda NO bloquea 'instalar'/'extraer' (los pasos son idempotentes y deben
 // poder reanudarse tras un F5); solo evita relanzar el asistente sobre lo ya hecho.
-if (di_already_installed($cfgExisting) && !in_array($paso, array('finalizar', 'redir', 'instalar', 'extraer'), true)) {
+if (di_already_installed($cfgExisting) && !in_array($paso, array('finalizar', 'redir', 'instalar', 'extraer', 'descargar'), true)) {
     di_header('Ya instalado', $paso);
     echo '<div class="win"><div class="t">AVISO</div><div class="b">';
     echo '<div class="msg warn">Parece que Dolibarr YA está instalado en este directorio (existe conf/conf.php con datos).</div>';
@@ -1621,43 +1909,29 @@ if ($paso === 'simple') {
     di_header('Paquete', 'simple');
     $zips = di_find_zips();
     $prev = di_load_config();
-    $prevZip = $prev ? basename((string) ($prev['zip'] ?? '')) : '';
     ?>
 <div class="win"><div class="t">MODO ULTRASENCILLO — SOLO EXTRAER</div><div class="b">
-<div class="dim" style="margin-bottom:8px">// se descomprime htdocs y te llevamos al asistente nativo install/ de Dolibarr</div>
+<div class="dim">// se descomprime htdocs y te llevamos al asistente nativo install/ de Dolibarr</div>
 <?php if (!empty($GLOBALS['formError'])) {
-        echo '<div class="msg err">';
+        echo '<div class="msg err" style="margin-top:10px">';
         foreach ($GLOBALS['formError'] as $e) {
             echo '· ' . di_h($e) . '<br>';
         }
         echo '</div>';
     } ?>
+</div></div>
 <form method="post" action="<?php echo DI_SELF; ?>?paso=simple">
     <input type="hidden" name="accion" value="guardar_simple">
-    <?php if (empty($zips)) { ?>
-        <div class="msg err">No hay ningún .zip junto a installer.php.</div>
-    <?php } elseif (count($zips) === 1) { ?>
-        <input type="hidden" name="zipfile" value="<?php echo di_h(basename($zips[0])); ?>">
-        <div>paquete: <span class="amber"><?php echo di_h(basename($zips[0])); ?></span> <span class="dim">(<?php echo round(filesize($zips[0]) / 1048576); ?> MB)</span></div>
-    <?php } else { ?>
-        <label class="f">paquete a extraer (<?php echo count($zips); ?> detectados)</label>
-        <select name="zipfile">
-            <?php foreach ($zips as $z) {
-                $bn = basename($z);
-                echo '<option value="' . di_h($bn) . '"' . ($prevZip === $bn ? ' selected' : '') . '>' . di_h($bn) . ' — ' . round(filesize($z) / 1048576) . ' MB</option>';
-            } ?>
-        </select>
-    <?php } ?>
-
+    <?php di_package_picker($prev, $zips); ?>
+    <div class="win"><div class="t">DESTINO</div><div class="b">
     <label class="f">subcarpeta de instalación (opcional, vacío = aquí)</label>
     <input type="text" name="subpath" value="<?php echo di_h($prev['subpath'] ?? ''); ?>" placeholder="(vacío)">
-
+    </div></div>
     <div class="row">
         <a class="btn dim" href="?paso=bienvenida">&lt; ATRÁS</a>
         <button class="btn amber" type="submit">EXTRAER &gt;</button>
     </div>
 </form>
-</div></div>
 <?php
     di_footer();
     exit;
@@ -1692,22 +1966,7 @@ if ($paso === 'config') {
 <form method="post" action="<?php echo DI_SELF; ?>?paso=config">
 <input type="hidden" name="accion" value="guardar">
 
-<div class="win"><div class="t">PAQUETE</div><div class="b">
-<?php if (empty($zips)) { ?>
-    <div class="msg err">No hay ningún .zip junto a installer.php.</div>
-<?php } elseif (count($zips) === 1) { ?>
-    <input type="hidden" name="zipfile" value="<?php echo di_h(basename($zips[0])); ?>">
-    <div>paquete: <span class="amber"><?php echo di_h(basename($zips[0])); ?></span> <span class="dim">(<?php echo round(filesize($zips[0]) / 1048576); ?> MB)</span></div>
-<?php } else { ?>
-    <label class="f">elige paquete (<?php echo count($zips); ?> detectados)</label>
-    <select name="zipfile">
-        <?php foreach ($zips as $z) {
-            $bn = basename($z);
-            echo '<option value="' . di_h($bn) . '"' . ($prevZip === $bn ? ' selected' : '') . '>' . di_h($bn) . ' — ' . round(filesize($z) / 1048576) . ' MB</option>';
-        } ?>
-    </select>
-<?php } ?>
-</div></div>
+<?php di_package_picker($prev, $zips); ?>
 
 <div class="win"><div class="t">BASE DE DATOS</div><div class="b">
 <?php $dbtype = $g('db.type', 'mysqli'); ?>
@@ -1775,6 +2034,59 @@ if ($paso === 'config') {
     if(dt.value==='pgsql' && (dp.value===''||dp.value==='3306')) dp.value='5432';
     if(dt.value==='mysqli' && (dp.value===''||dp.value==='5432')) dp.value='3306';
   });
+</script>
+<?php
+    di_footer();
+    exit;
+}
+
+if ($paso === 'descargar') {
+    $cfg = di_load_config();
+    if (!$cfg || empty($cfg['download_version'])) {
+        header('Location: ' . DI_SELF . '?paso=bienvenida');
+        exit;
+    }
+    di_header('Descarga', 'extraer');
+    $ver = $cfg['download_version'];
+    ?>
+<div class="win"><div class="t">DESCARGANDO :: dolibarr-<?php echo di_h($ver); ?>.zip</div><div class="b">
+<div class="pbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="pbar"><i id="bar"></i><span id="pct">0%</span></div>
+<pre class="log" id="log" aria-live="polite"></pre>
+<noscript><div class="msg err">Este asistente necesita JavaScript para descargar por bloques. Actívalo y recarga.</div></noscript>
+<div class="msg err" id="err" style="display:none" role="alert"></div>
+<div class="row"><span class="dim">origen: sourceforge.net</span>
+<a class="btn" id="next" style="display:none" href="?paso=extraer">CONTINUAR &gt;</a></div>
+</div></div>
+<script>
+  var VER=<?php echo json_encode($ver); ?>;
+  var log=document.getElementById('log'),bar=document.getElementById('bar'),pct=document.getElementById('pct'),
+      pbar=document.getElementById('pbar'),errb=document.getElementById('err'),next=document.getElementById('next'),cur=null,nb=0;
+  function pad(n,w){n=''+n;while(n.length<w)n='0'+n;return n;}
+  function ts(){var d=new Date();return pad(d.getHours(),2)+':'+pad(d.getMinutes(),2)+':'+pad(d.getSeconds(),2);}
+  function mb(b){return (b/1048576).toFixed(1)+' MB';}
+  function ascii(p){var w=22,f=Math.round(p/100*w);return '['+Array(f+1).join('#')+Array(w-f+1).join('-')+']';}
+  function put(s){if(cur){cur.remove();cur=null;}log.insertAdjacentText('beforeend',s+'\n');cur=document.createElement('span');cur.className='cursor';log.appendChild(cur);log.scrollTop=log.scrollHeight;}
+  function fail(m,off){errb.style.display='block';errb.innerHTML='ERROR: '+m+'<br><button class="btn" onclick="errb.style.display=\'none\';step('+off+',0)">REINTENTAR</button>';}
+  put(ts()+'  conectando con sourceforge.net ...');
+  function step(offset,tries){
+    tries=tries||0;
+    fetch('<?php echo DI_SELF; ?>?ajax=descargar&offset='+offset,{cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(d.error){put('  !! '+d.error);fail(d.error,offset);return;}
+        nb++;
+        var p=d.total?Math.round(d.next/d.total*100):0;
+        bar.style.width=p+'%';pct.textContent=p+'%';pbar.setAttribute('aria-valuenow',p);
+        put(ts()+'  bloque '+pad(nb,3)+'  '+ascii(p)+' '+p+'%  '+mb(d.next)+' / '+mb(d.total));
+        if(d.done){put(ts()+'  descarga COMPLETA ('+mb(d.next)+'). validando ZIP ...');put(ts()+'  paquete listo.');next.style.display='inline-block';setTimeout(function(){location.href='?paso=extraer';},700);}
+        else step(d.next,0);
+      })
+      .catch(function(e){
+        if(tries<6){put(ts()+'  reintentando (offset '+offset+', '+(tries+1)+') ...');setTimeout(function(){step(offset,tries+1);},2000*(tries+1));}
+        else{put('  !! red: '+e);fail('Fallo de red en offset '+offset+': '+e,offset);}
+      });
+  }
+  step(0,0);
 </script>
 <?php
     di_footer();

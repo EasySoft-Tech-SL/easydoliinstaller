@@ -1,6 +1,6 @@
 # EasyDoliInstaller
 
-**Instalador automático "todo en uno" para [Dolibarr](https://www.dolibarr.org), en un solo archivo PHP.** Al estilo de Duplicator/Migrator: subes `easydoliinstaller.php` junto al ZIP oficial de Dolibarr, abres el archivo en el navegador y el asistente descomprime y realiza **todo** el proceso de instalación por ti.
+**Instalador automático "todo en uno" para [Dolibarr](https://www.dolibarr.org), en un solo archivo PHP.** Al estilo de Duplicator/Migrator: subes **solo** `easydoliinstaller.php`, eliges la versión de Dolibarr (la **descarga él mismo**) o usas un ZIP que ya tengas, abres el archivo en el navegador y el asistente descomprime y realiza **todo** el proceso de instalación por ti.
 
 > Hecho por [Easysoft Tech S.L.](https://github.com/easySoft-Tech-SL) · Licencia GPL-3.0 (igual que Dolibarr)
 
@@ -17,7 +17,8 @@ Dos modos en el mismo archivo:
 | **Automático** | Descomprime + crea la base de datos + tablas + datos de referencia + cuenta de administrador + bloquea la instalación. **Cero clics** en el asistente nativo. Al terminar se autodestruye. |
 | **Ultrasencillo** | Solo descomprime `htdocs` y te redirige al asistente nativo `install/` de Dolibarr para que lo configures tú. |
 
-- 🖥️ **Interfaz tipo terminal CRT** (verde fósforo) con **log en vivo real** de cada bloque de descompresión y cada paso de instalación (no una carga inventada).
+- 📥 **Descarga autónoma**: elige la versión y el instalador baja el paquete oficial desde SourceForge por bloques (con barra de progreso real). Lista de versiones desde GitHub. ¡Sube solo 1 archivo!
+- 🖥️ **Interfaz tipo terminal CRT** (verde fósforo) con **log en vivo real** de cada bloque de descarga/descompresión y cada paso de instalación (no una carga inventada).
 - ⚡ **Descompresión nativa** (`ZipArchive::extractTo`) por bloques: ~17.000 archivos en segundos, como 7-Zip.
 - 🔁 Reanudable: reintenta bloques/pasos y sobrevive a un F5.
 - 🧩 Detecta y deja **elegir** entre varios `dolibarr-*.zip`.
@@ -25,8 +26,8 @@ Dos modos en el mismo archivo:
 ## 🚀 Uso
 
 1. Sube a la carpeta que será la **raíz web** de tu Dolibarr:
-   - `easydoliinstaller.php`
-   - El paquete oficial de Dolibarr, p. ej. `dolibarr-23.0.3.zip`
+   - `easydoliinstaller.php` (¡y nada más!)
+   - *Opcional*: un `dolibarr-*.zip` si prefieres no descargarlo (si no, el asistente lo baja solo).
 2. Abre en el navegador: `https://tu-dominio/easydoliinstaller.php`
 3. Sigue el asistente. En modo automático, al terminar pulsa **Limpiar** y entras a tu Dolibarr ya instalado.
 
