@@ -1,0 +1,18 @@
+# Paquetes de Dolibarr (no se versionan; se descargan de dolibarr.org)
+dolibarr-*.zip
+*.zip
+
+# Artefactos generados por el instalador en tiempo de ejecución
+__doli_installer_tmp__/
+__doli_extract__/
+documents/
+install.lock
+
+# Pruebas / estudio locales
+_study/
+_repo/
+testinstall/
+
+# Sistema
+.DS_Store
+Thumbs.db
