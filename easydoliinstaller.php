@@ -18,10 +18,16 @@
  *  al asistente nativo install/ de Dolibarr.
  *
  *  MODO ACTUALIZAR: si detecta un Dolibarr ya instalado, ofrece ABRIR / ACTUALIZAR /
- *  REINSTALAR. La actualización descarga una versión superior, sustituye los ficheros
- *  preservando conf/, custom/ y documents/, y ejecuta las migraciones nativas una major
- *  a la vez (upgrade.php -> upgrade2.php por salto, step5 al final) con log en vivo;
+ *  REPARAR / REINSTALAR. La actualización descarga una versión superior, sustituye los
+ *  ficheros preservando conf/, custom/ y documents/, y ejecuta las migraciones nativas una
+ *  major a la vez (upgrade.php -> upgrade2.php por salto, step5 al final) con log en vivo;
  *  o, en modo "paso a paso", te entrega al asistente nativo de Dolibarr. Sin downgrade.
+ *  Antes de migrar guarda un dump de la BD (punto de restauración) en documents/.
+ *
+ *  MODO REPARAR: coteja la instalación fichero a fichero con el paquete OFICIAL de la
+ *  MISMA versión, muestra un informe de los que difieren o faltan (excluye conf/, custom/
+ *  y documents/), permite descargar un ZIP de los afectados y los restaura desde el
+ *  oficial, todo con confirmación. Así el instalador cubre INSTALAR, ACTUALIZAR y REPARAR.
  *
  *  USO
  *  ---
@@ -50,7 +56,7 @@
 @ignore_user_abort(true);
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE & ~E_WARNING);
 
-define('DI_VERSION', '1.7.3');
+define('DI_VERSION', '1.8.0');
 define('DI_DIR', __DIR__);
 define('DI_SELF', basename(__FILE__));
 define('DI_TMPDIR', DI_DIR . '/__doli_installer_tmp__');
@@ -62,6 +68,7 @@ define('DI_LOG', DI_TMPDIR . '/install.log');
 
 define('DI_PHP_MIN', '7.1.0');                 // mínimo que exige Dolibarr 23
 define('DI_EXTRACT_CHUNK', 2500);              // entradas del ZIP por petición AJAX (extracción nativa)
+define('DI_COMPARE_CHUNK', 900);               // entradas comparadas por petición AJAX (verificación de integridad)
 
 /* ===========================================================================
  *  i18n — TRADUCCIONES AUTOCONTENIDAS (en, es, de, fr, it)
@@ -237,6 +244,19 @@ function di_dict()
         'mg_backup' => 'back up database (restore point)',
         'up_bk_ok' => 'database backup saved ({s}, {n} KB)', 'up_bk_warn' => 'could not auto-save the DB backup ({s}); continuing — restore from your manual dump if needed', 'up_bk_pg' => 'PostgreSQL: auto-backup skipped (use pg_dump); continuing',
         'up_rollback_hint' => 'Rollback point: a DB dump is saved as {s} in your documents folder. To roll back: restore that .sql and put back the previous Dolibarr files.',
+        'st_repair' => 'repair', 'st_verify' => 'verify', 'st_report' => 'report',
+        'gi_rep_h' => 'REPAIR / VERIFY INTEGRITY', 'gi_rep_d' => 'Compare your install file-by-file against the official package of the same version and restore the ones that differ.',
+        'rp_title' => 'REPAIR — VERIFY INTEGRITY', 'rp_intro' => 'pick the OFFICIAL package of the SAME version; it will be compared file-by-file with your install.',
+        'rp_samever' => 'Use exactly the installed version ({s}); a different version would flag almost everything as changed.', 'rp_start' => 'VERIFY',
+        'rp_noresult' => 'No comparison result; run the verification first.', 'rp_applied' => 'Repaired: {ok} restored, {fail} failed.',
+        'vf_title' => 'VERIFYING INTEGRITY', 'vf_note' => 'comparing against the official package ...',
+        'vf_start' => 'starting comparison ...', 'vf_chk' => 'checked {c} — modified {m}, missing {k}', 'vf_comp' => 'comparison complete: {m} modified, {k} missing',
+        'ir_title' => 'INTEGRITY REPORT', 'ir_checked' => '{n} core files checked', 'ir_summary' => '{m} modified, {k} missing',
+        'ir_clean' => 'Integrity OK — every core file matches the official package. Nothing to repair.',
+        'ir_more' => 'more', 'ir_legend' => '~ modified (differs from official)   + missing (absent locally). conf/, custom/ and documents/ are excluded.',
+        'ir_dlzip' => 'DOWNLOAD AFFECTED FILES (.zip)', 'ir_repair' => 'REPAIR {n} FILES',
+        'ir_confirm' => 'Restore {n} files from the official package (overwriting the current ones)? A backup zip of the affected files is kept first.',
+        'ir_working' => 'repairing ...', 'ir_done' => 'repair done.', 'ir_fail' => 'repair failed.', 'ir_clean_btn' => 'REMOVE INSTALLER',
         'pk_nodown' => '(only {s} or newer)',
         'e_exists' => 'A Dolibarr is already installed here. Use Update, or confirm a reinstall.',
         'fn_title_up' => 'UPGRADE COMPLETE', 'fn_op_up' => 'dolibarr upgraded', 'fn_upgraded' => 'version: {s}',
@@ -387,6 +407,19 @@ function di_dict()
         'mg_backup' => 'copia de seguridad de la BD (punto de restauración)',
         'up_bk_ok' => 'copia de la BD guardada ({s}, {n} KB)', 'up_bk_warn' => 'no se pudo auto-guardar la copia de la BD ({s}); se continúa — restaura desde tu dump manual si hiciera falta', 'up_bk_pg' => 'PostgreSQL: copia automática omitida (usa pg_dump); se continúa',
         'up_rollback_hint' => 'Punto de rollback: se guarda un dump de la BD como {s} en tu carpeta documents. Para revertir: restaura ese .sql y repón los ficheros de la versión anterior.',
+        'st_repair' => 'reparar', 'st_verify' => 'verificar', 'st_report' => 'informe',
+        'gi_rep_h' => 'REPARAR / VERIFICAR INTEGRIDAD', 'gi_rep_d' => 'Compara tu instalación fichero a fichero con el paquete oficial de la misma versión y restaura los que difieran.',
+        'rp_title' => 'REPARAR — VERIFICAR INTEGRIDAD', 'rp_intro' => 'elige el paquete OFICIAL de la MISMA versión; se cotejará fichero a fichero con tu instalación.',
+        'rp_samever' => 'Usa exactamente la versión instalada ({s}); otra versión marcaría casi todo como cambiado.', 'rp_start' => 'VERIFICAR',
+        'rp_noresult' => 'No hay resultado de comparación; ejecuta antes la verificación.', 'rp_applied' => 'Reparado: {ok} restaurados, {fail} fallidos.',
+        'vf_title' => 'VERIFICANDO INTEGRIDAD', 'vf_note' => 'comparando con el paquete oficial ...',
+        'vf_start' => 'iniciando comparación ...', 'vf_chk' => 'comprobados {c} — modificados {m}, ausentes {k}', 'vf_comp' => 'comparación completa: {m} modificados, {k} ausentes',
+        'ir_title' => 'INFORME DE INTEGRIDAD', 'ir_checked' => '{n} ficheros del core comprobados', 'ir_summary' => '{m} modificados, {k} ausentes',
+        'ir_clean' => 'Integridad OK — todos los ficheros del core coinciden con el paquete oficial. Nada que reparar.',
+        'ir_more' => 'más', 'ir_legend' => '~ modificado (difiere del oficial)   + ausente (falta en local). Se excluyen conf/, custom/ y documents/.',
+        'ir_dlzip' => 'DESCARGAR FICHEROS AFECTADOS (.zip)', 'ir_repair' => 'REPARAR {n} FICHEROS',
+        'ir_confirm' => '¿Restaurar {n} ficheros desde el paquete oficial (sobrescribiendo los actuales)? Antes se guarda un zip de copia de los afectados.',
+        'ir_working' => 'reparando ...', 'ir_done' => 'reparación completada.', 'ir_fail' => 'la reparación falló.', 'ir_clean_btn' => 'QUITAR INSTALADOR',
         'pk_nodown' => '(solo {s} o superior)',
         'e_exists' => 'Ya hay un Dolibarr instalado aquí. Usa Actualizar, o confirma una reinstalación.',
         'fn_title_up' => 'ACTUALIZACIÓN COMPLETA', 'fn_op_up' => 'dolibarr actualizado', 'fn_upgraded' => 'versión: {s}',
@@ -537,6 +570,19 @@ function di_dict()
         'mg_backup' => 'Datenbank sichern (Wiederherstellungspunkt)',
         'up_bk_ok' => 'Datenbanksicherung gespeichert ({s}, {n} KB)', 'up_bk_warn' => 'DB-Sicherung konnte nicht automatisch gespeichert werden ({s}); es wird fortgefahren — bei Bedarf aus Ihrem manuellen Dump wiederherstellen', 'up_bk_pg' => 'PostgreSQL: Auto-Sicherung übersprungen (pg_dump verwenden); es wird fortgefahren',
         'up_rollback_hint' => 'Rollback-Punkt: ein DB-Dump wird als {s} im documents-Ordner gespeichert. Zum Zurückrollen: dieses .sql wiederherstellen und die vorherigen Dolibarr-Dateien zurücklegen.',
+        'st_repair' => 'reparieren', 'st_verify' => 'prüfen', 'st_report' => 'bericht',
+        'gi_rep_h' => 'REPARIEREN / INTEGRITÄT PRÜFEN', 'gi_rep_d' => 'Vergleicht Ihre Installation Datei für Datei mit dem offiziellen Paket derselben Version und stellt abweichende Dateien wieder her.',
+        'rp_title' => 'REPARIEREN — INTEGRITÄT PRÜFEN', 'rp_intro' => 'wählen Sie das OFFIZIELLE Paket DERSELBEN Version; es wird Datei für Datei mit Ihrer Installation verglichen.',
+        'rp_samever' => 'Genau die installierte Version verwenden ({s}); eine andere Version würde fast alles als geändert melden.', 'rp_start' => 'PRÜFEN',
+        'rp_noresult' => 'Kein Vergleichsergebnis; führen Sie zuerst die Prüfung aus.', 'rp_applied' => 'Repariert: {ok} wiederhergestellt, {fail} fehlgeschlagen.',
+        'vf_title' => 'INTEGRITÄT WIRD GEPRÜFT', 'vf_note' => 'Vergleich mit dem offiziellen Paket ...',
+        'vf_start' => 'Vergleich startet ...', 'vf_chk' => 'geprüft {c} — geändert {m}, fehlend {k}', 'vf_comp' => 'Vergleich fertig: {m} geändert, {k} fehlend',
+        'ir_title' => 'INTEGRITÄTSBERICHT', 'ir_checked' => '{n} Core-Dateien geprüft', 'ir_summary' => '{m} geändert, {k} fehlend',
+        'ir_clean' => 'Integrität OK — alle Core-Dateien stimmen mit dem offiziellen Paket überein. Nichts zu reparieren.',
+        'ir_more' => 'mehr', 'ir_legend' => '~ geändert (weicht vom Original ab)   + fehlend (lokal nicht vorhanden). conf/, custom/ und documents/ ausgenommen.',
+        'ir_dlzip' => 'BETROFFENE DATEIEN HERUNTERLADEN (.zip)', 'ir_repair' => '{n} DATEIEN REPARIEREN',
+        'ir_confirm' => '{n} Dateien aus dem offiziellen Paket wiederherstellen (die aktuellen überschreiben)? Zuvor wird ein Backup-Zip der betroffenen Dateien gespeichert.',
+        'ir_working' => 'repariere ...', 'ir_done' => 'Reparatur fertig.', 'ir_fail' => 'Reparatur fehlgeschlagen.', 'ir_clean_btn' => 'INSTALLER ENTFERNEN',
         'pk_nodown' => '(nur {s} oder neuer)',
         'e_exists' => 'Hier ist bereits ein Dolibarr installiert. Nutzen Sie Aktualisieren oder bestätigen Sie eine Neuinstallation.',
         'fn_title_up' => 'UPGRADE ABGESCHLOSSEN', 'fn_op_up' => 'dolibarr aktualisiert', 'fn_upgraded' => 'Version: {s}',
@@ -687,6 +733,19 @@ function di_dict()
         'mg_backup' => 'sauvegarde de la base (point de restauration)',
         'up_bk_ok' => 'sauvegarde de la base enregistrée ({s}, {n} Ko)', 'up_bk_warn' => 'impossible d\'enregistrer automatiquement la sauvegarde ({s}) ; on continue — restaurez depuis votre dump manuel si nécessaire', 'up_bk_pg' => 'PostgreSQL : sauvegarde auto ignorée (utilisez pg_dump) ; on continue',
         'up_rollback_hint' => 'Point de rollback : un dump de la base est enregistré sous {s} dans votre dossier documents. Pour revenir en arrière : restaurez ce .sql et remettez les fichiers de la version précédente.',
+        'st_repair' => 'réparer', 'st_verify' => 'vérifier', 'st_report' => 'rapport',
+        'gi_rep_h' => 'RÉPARER / VÉRIFIER L\'INTÉGRITÉ', 'gi_rep_d' => 'Compare votre installation fichier par fichier avec le paquet officiel de la même version et restaure ceux qui diffèrent.',
+        'rp_title' => 'RÉPARER — VÉRIFIER L\'INTÉGRITÉ', 'rp_intro' => 'choisissez le paquet OFFICIEL de la MÊME version ; il sera comparé fichier par fichier à votre installation.',
+        'rp_samever' => 'Utilisez exactement la version installée ({s}) ; une autre version signalerait presque tout comme modifié.', 'rp_start' => 'VÉRIFIER',
+        'rp_noresult' => 'Aucun résultat de comparaison ; lancez d\'abord la vérification.', 'rp_applied' => 'Réparé : {ok} restaurés, {fail} échoués.',
+        'vf_title' => 'VÉRIFICATION DE L\'INTÉGRITÉ', 'vf_note' => 'comparaison avec le paquet officiel ...',
+        'vf_start' => 'démarrage de la comparaison ...', 'vf_chk' => 'vérifiés {c} — modifiés {m}, manquants {k}', 'vf_comp' => 'comparaison terminée : {m} modifiés, {k} manquants',
+        'ir_title' => 'RAPPORT D\'INTÉGRITÉ', 'ir_checked' => '{n} fichiers du cœur vérifiés', 'ir_summary' => '{m} modifiés, {k} manquants',
+        'ir_clean' => 'Intégrité OK — tous les fichiers du cœur correspondent au paquet officiel. Rien à réparer.',
+        'ir_more' => 'de plus', 'ir_legend' => '~ modifié (diffère de l\'officiel)   + manquant (absent en local). conf/, custom/ et documents/ sont exclus.',
+        'ir_dlzip' => 'TÉLÉCHARGER LES FICHIERS CONCERNÉS (.zip)', 'ir_repair' => 'RÉPARER {n} FICHIERS',
+        'ir_confirm' => 'Restaurer {n} fichiers depuis le paquet officiel (en écrasant les actuels) ? Un zip de sauvegarde des fichiers concernés est conservé au préalable.',
+        'ir_working' => 'réparation ...', 'ir_done' => 'réparation terminée.', 'ir_fail' => 'échec de la réparation.', 'ir_clean_btn' => 'SUPPRIMER L\'INSTALLATEUR',
         'pk_nodown' => '(seulement {s} ou plus récent)',
         'e_exists' => 'Un Dolibarr est déjà installé ici. Utilisez Mettre à jour, ou confirmez une réinstallation.',
         'fn_title_up' => 'MISE À JOUR TERMINÉE', 'fn_op_up' => 'dolibarr mis à jour', 'fn_upgraded' => 'version : {s}',
@@ -837,6 +896,19 @@ function di_dict()
         'mg_backup' => 'backup del database (punto di ripristino)',
         'up_bk_ok' => 'backup del database salvato ({s}, {n} KB)', 'up_bk_warn' => 'impossibile salvare automaticamente il backup ({s}); si continua — ripristina dal tuo dump manuale se necessario', 'up_bk_pg' => 'PostgreSQL: backup automatico saltato (usa pg_dump); si continua',
         'up_rollback_hint' => 'Punto di rollback: un dump del DB viene salvato come {s} nella cartella documents. Per ripristinare: ripristina quel .sql e rimetti i file della versione precedente.',
+        'st_repair' => 'ripara', 'st_verify' => 'verifica', 'st_report' => 'rapporto',
+        'gi_rep_h' => 'RIPARA / VERIFICA INTEGRITÀ', 'gi_rep_d' => 'Confronta la tua installazione file per file con il pacchetto ufficiale della stessa versione e ripristina quelli che differiscono.',
+        'rp_title' => 'RIPARA — VERIFICA INTEGRITÀ', 'rp_intro' => 'scegli il pacchetto UFFICIALE della STESSA versione; verrà confrontato file per file con la tua installazione.',
+        'rp_samever' => 'Usa esattamente la versione installata ({s}); una versione diversa segnalerebbe quasi tutto come modificato.', 'rp_start' => 'VERIFICA',
+        'rp_noresult' => 'Nessun risultato di confronto; esegui prima la verifica.', 'rp_applied' => 'Riparato: {ok} ripristinati, {fail} falliti.',
+        'vf_title' => 'VERIFICA INTEGRITÀ', 'vf_note' => 'confronto con il pacchetto ufficiale ...',
+        'vf_start' => 'avvio confronto ...', 'vf_chk' => 'controllati {c} — modificati {m}, mancanti {k}', 'vf_comp' => 'confronto completato: {m} modificati, {k} mancanti',
+        'ir_title' => 'RAPPORTO DI INTEGRITÀ', 'ir_checked' => '{n} file del core controllati', 'ir_summary' => '{m} modificati, {k} mancanti',
+        'ir_clean' => 'Integrità OK — tutti i file del core corrispondono al pacchetto ufficiale. Niente da riparare.',
+        'ir_more' => 'altri', 'ir_legend' => '~ modificato (differisce dall\'ufficiale)   + mancante (assente in locale). conf/, custom/ e documents/ sono esclusi.',
+        'ir_dlzip' => 'SCARICA I FILE INTERESSATI (.zip)', 'ir_repair' => 'RIPARA {n} FILE',
+        'ir_confirm' => 'Ripristinare {n} file dal pacchetto ufficiale (sovrascrivendo quelli attuali)? Prima viene salvato uno zip di backup dei file interessati.',
+        'ir_working' => 'riparazione ...', 'ir_done' => 'riparazione completata.', 'ir_fail' => 'riparazione fallita.', 'ir_clean_btn' => 'RIMUOVI INSTALLER',
         'pk_nodown' => '(solo {s} o superiore)',
         'e_exists' => 'Qui è già installato un Dolibarr. Usa Aggiorna, oppure conferma una reinstallazione.',
         'fn_title_up' => 'AGGIORNAMENTO COMPLETATO', 'fn_op_up' => 'dolibarr aggiornato', 'fn_upgraded' => 'versione: {s}',
@@ -2654,6 +2726,156 @@ function di_dump_db_file($cfg, $path)
     return array(true, $bytes, '');
 }
 
+/* ===========================================================================
+ *  REPARAR — verifica la integridad de un Dolibarr instalado comparándolo
+ *  fichero a fichero con el paquete OFICIAL de la MISMA versión, informa de las
+ *  diferencias, hace una copia de los afectados y los restaura desde el oficial.
+ * ======================================================================== */
+
+/** Fichero (temporal) donde se acumula el resultado de la comparación. */
+function di_repair_state_path()
+{
+    return DI_TMPDIR . '/repair.json';
+}
+
+/** ¿Se excluye esta ruta del cotejo? (datos/config del usuario, no del core). */
+function di_repair_skip($rel)
+{
+    foreach (array('conf/', 'custom/', 'documents/') as $p) {
+        if (strncmp($rel, $p, strlen($p)) === 0) {
+            return true;
+        }
+    }
+    return ($rel === 'conf/conf.php' || $rel === 'install.lock');
+}
+
+/**
+ * Compara un bloque de entradas del ZIP oficial con los ficheros instalados.
+ * Acumula en repair.json las rutas 'modified' (difieren) y 'missing' (faltan).
+ */
+function di_compare_chunk($cfg, $offset)
+{
+    $zip = new ZipArchive();
+    if ($zip->open($cfg['zip']) !== true) {
+        return array('error' => di_t('e_cantopen', array('{s}' => $cfg['zip'])));
+    }
+    $prefix = isset($cfg['prefix']) ? $cfg['prefix'] : '';
+    $plen = strlen($prefix);
+    $num = $zip->numFiles;
+    $end = min($offset + DI_COMPARE_CHUNK, $num);
+    $target = $cfg['target'];
+
+    $state = array('modified' => array(), 'missing' => array(), 'checked' => 0);
+    if ($offset > 0 && is_file(di_repair_state_path())) {
+        $raw = json_decode((string) @file_get_contents(di_repair_state_path()), true);
+        if (is_array($raw)) {
+            $state = $raw + $state;
+        }
+    }
+
+    for ($i = $offset; $i < $end; $i++) {
+        $name = $zip->getNameIndex($i);
+        if ($name === false || strncmp($name, $prefix, $plen) !== 0) {
+            continue;
+        }
+        $rel = substr($name, $plen);
+        if ($rel === '' || substr($rel, -1) === '/') {
+            continue; // entrada de directorio
+        }
+        if (di_repair_skip($rel)) {
+            continue;
+        }
+        $state['checked']++;
+        $instPath = $target . '/' . $rel;
+        if (!is_file($instPath)) {
+            $state['missing'][] = $rel;
+            continue;
+        }
+        $official = $zip->getFromIndex($i);
+        if ($official === false) {
+            continue;
+        }
+        if (md5($official) !== md5_file($instPath)) {
+            $state['modified'][] = $rel;
+        }
+    }
+    $zip->close();
+
+    di_ensure_tmp();
+    @file_put_contents(di_repair_state_path(), json_encode($state));
+    @chmod(di_repair_state_path(), 0600);
+
+    return array(
+        'next' => $end, 'total' => $num, 'done' => $end >= $num,
+        'checked' => $state['checked'],
+        'modified' => count($state['modified']),
+        'missing' => count($state['missing']),
+    );
+}
+
+/** Devuelve el resultado acumulado de la comparación (o null). */
+function di_repair_result()
+{
+    if (!is_file(di_repair_state_path())) {
+        return null;
+    }
+    $r = json_decode((string) @file_get_contents(di_repair_state_path()), true);
+    return is_array($r) ? $r : null;
+}
+
+/** Crea un ZIP con los ficheros AFECTADOS tal como están AHORA (copia previa). [path|null]. */
+function di_repair_backup_zip($cfg, $files)
+{
+    if (empty($files) || !class_exists('ZipArchive')) {
+        return null;
+    }
+    $out = DI_TMPDIR . '/repair-backup.zip';
+    @unlink($out);
+    $zip = new ZipArchive();
+    if ($zip->open($out, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        return null;
+    }
+    foreach ($files as $rel) {
+        $p = $cfg['target'] . '/' . $rel;
+        if (is_file($p)) {
+            $zip->addFile($p, $rel);
+        }
+    }
+    $zip->close();
+    return is_file($out) ? $out : null;
+}
+
+/** Restaura los ficheros indicados desde el ZIP oficial. Devuelve [ok, fail]. */
+function di_repair_apply($cfg, $files)
+{
+    $zip = new ZipArchive();
+    if ($zip->open($cfg['zip']) !== true) {
+        return array(0, count($files));
+    }
+    $prefix = isset($cfg['prefix']) ? $cfg['prefix'] : '';
+    $ok = 0;
+    $fail = 0;
+    foreach ($files as $rel) {
+        $content = $zip->getFromName($prefix . $rel);
+        if ($content === false) {
+            $fail++;
+            continue;
+        }
+        $dest = $cfg['target'] . '/' . $rel;
+        $dir = dirname($dest);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        if (@file_put_contents($dest, $content) !== false) {
+            $ok++;
+        } else {
+            $fail++;
+        }
+    }
+    $zip->close();
+    return array($ok, $fail);
+}
+
 /** Extrae un mensaje de error legible del HTML devuelto por un paso. */
 function di_extract_error($html)
 {
@@ -2705,11 +2927,39 @@ if (isset($_GET['ajax'])) {
         exit;
     }
 
+    // Descarga del ZIP con los ficheros afectados (copia previa a la reparación).
+    if ($ajax === 'repairzip') {
+        if (!di_token_ok($cfg)) {
+            http_response_code(403);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'Forbidden';
+            exit;
+        }
+        $res = di_repair_result();
+        $files = $res ? array_merge($res['modified'] ?? array(), $res['missing'] ?? array()) : array();
+        // 'missing' no existe en disco; el zip de copia solo incluye los presentes (modified).
+        $path = $cfg ? di_repair_backup_zip($cfg, $files) : null;
+        if (!$path) {
+            http_response_code(404);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'No affected files to back up';
+            exit;
+        }
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="easydoliinstaller-affected-files.zip"');
+        header('Content-Length: ' . filesize($path));
+        while (ob_get_level() > 0) {
+            @ob_end_flush();
+        }
+        readfile($path);
+        exit;
+    }
+
     header('Content-Type: application/json; charset=utf-8');
 
     // Anti-CSRF / anti-secuestro: las acciones mutantes exigen el token de la instalación
     // (cookie puesta en el arranque). 'versiones' no toca estado y queda exenta.
-    if (in_array($ajax, array('extraer', 'instalar', 'descargar', 'limpiar', 'migrar'), true) && !di_token_ok($cfg)) {
+    if (in_array($ajax, array('extraer', 'instalar', 'descargar', 'limpiar', 'migrar', 'comparar', 'reparar'), true) && !di_token_ok($cfg)) {
         http_response_code(403);
         echo json_encode(array('error' => di_t('e_forbidden')));
         exit;
@@ -2718,7 +2968,7 @@ if (isset($_GET['ajax'])) {
     // No machacar una instalación existente con extraer/descargar salvo que sea un
     // flujo de ACTUALIZACIÓN o una reinstalación explícitamente confirmada.
     if (in_array($ajax, array('extraer', 'descargar'), true) && $cfg
-        && ($cfg['mode'] ?? 'full') !== 'update'
+        && !in_array($cfg['mode'] ?? 'full', array('update', 'repair'), true)
         && empty($cfg['confirm_reinstall'])
         && di_already_installed($cfg)) {
         http_response_code(409);
@@ -2824,6 +3074,37 @@ if (isset($_GET['ajax'])) {
         exit;
     }
 
+    if ($ajax === 'comparar') {
+        if (!$cfg) {
+            echo json_encode(array('error' => di_t('e_noconfig')));
+            exit;
+        }
+        $offset = isset($_GET['offset']) ? (int) $_GET['offset'] : 0;
+        if ($offset === 0) {
+            @unlink(di_repair_state_path()); // empezar limpio
+        }
+        echo json_encode(di_compare_chunk($cfg, $offset));
+        exit;
+    }
+
+    if ($ajax === 'reparar') {
+        if (!$cfg) {
+            echo json_encode(array('ok' => false, 'msg' => di_t('e_noconfig')));
+            exit;
+        }
+        $res = di_repair_result();
+        if (!$res) {
+            echo json_encode(array('ok' => false, 'msg' => di_t('rp_noresult')));
+            exit;
+        }
+        $files = array_values(array_unique(array_merge($res['modified'] ?? array(), $res['missing'] ?? array())));
+        // Copia de seguridad de los afectados presentes ANTES de sobrescribir.
+        di_repair_backup_zip($cfg, $files);
+        list($ok, $fail) = di_repair_apply($cfg, $files);
+        echo json_encode(array('ok' => $fail === 0, 'restored' => $ok, 'failed' => $fail, 'msg' => di_t('rp_applied', array('{ok}' => $ok, '{fail}' => $fail))));
+        exit;
+    }
+
     if ($ajax === 'instalar') {
         if (!$cfg) {
             echo json_encode(array('ok' => false, 'msg' => di_t('e_noconfig')));
@@ -2876,6 +3157,10 @@ if (isset($_GET['ajax'])) {
         } elseif ($mode === 'simple') {
             // Conservamos install/ y conf.php: el usuario terminará con el asistente nativo.
             $appurl = $base . '/install/index.php';
+        } elseif ($mode === 'repair') {
+            // Reparación: NO tocamos el install/ del Dolibarr existente; solo retiramos
+            // el instalador, el ZIP oficial y el temporal (abajo).
+            $appurl = $base . '/';
         } else {
             // Modo automático / actualización del tirón: install/ ya no hace falta.
             if ($inside) {
@@ -3042,6 +3327,60 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '')
             di_set_token_cookie($saved['tok'] ?? '');
         }
         header('Location: ' . DI_SELF . '?paso=' . ($pkgsource === 'download' ? 'descargar' : 'extraer'));
+        exit;
+    }
+}
+
+// ---- PASO REPARAR: elige el paquete OFICIAL de la misma versión y arranca la verificación ----
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '') === 'reparar') {
+    $allZips = di_find_zips();
+    $pkgsource = (($_POST['pkgsource'] ?? '') === 'download') ? 'download' : 'local';
+    $zip = null;
+    $prefix = null;
+    $downloadVer = null;
+    if ($pkgsource === 'download') {
+        $downloadVer = di_sanitize_version($_POST['download_version_manual'] ?? '');
+        if (!$downloadVer) {
+            $downloadVer = di_sanitize_version($_POST['download_version'] ?? '');
+        }
+    } else {
+        $zip = di_resolve_zip($_POST['zipfile'] ?? '');
+        if (!$zip && count($allZips) === 1) {
+            $zip = $allZips[0];
+        }
+        $prefix = $zip ? di_detect_prefix($zip) : null;
+    }
+
+    $errs = array();
+    if ($pkgsource === 'download') {
+        if (!$downloadVer) {
+            $errs[] = di_t('v_ver');
+        }
+    } elseif (!$zip) {
+        $errs[] = empty($allZips) ? di_t('v_nolocal') : di_t('v_choosezip', array('{n}' => count($allZips)));
+    } elseif (!$prefix) {
+        $errs[] = di_t('v_badzip', array('{s}' => basename($zip)));
+    }
+
+    if ($errs) {
+        $formError = $errs;
+    } else {
+        di_save_config(array(
+            'mode' => 'repair',
+            'zip' => $zip,
+            'prefix' => $prefix,
+            'download_version' => $downloadVer,
+            'subpath' => '',
+            'target' => DI_DIR,
+            'baseurl' => di_self_base_url(),
+            'lang' => 'auto',
+        ));
+        $saved = di_load_config();
+        if ($saved) {
+            di_set_token_cookie($saved['tok'] ?? '');
+        }
+        @unlink(di_repair_state_path()); // nueva verificación desde cero
+        header('Location: ' . DI_SELF . '?paso=' . ($pkgsource === 'download' ? 'descargar' : 'verificar'));
         exit;
     }
 }
@@ -3244,6 +3583,9 @@ function di_steps_for_mode($mode)
     if ($mode === 'update_manual') {
         return array('bienvenida' => 'st_inicio', 'actualizar' => 'st_update', 'extraer' => 'st_extraer', 'redir' => 'st_lanzar');
     }
+    if ($mode === 'repair') {
+        return array('bienvenida' => 'st_inicio', 'reparar' => 'st_repair', 'descargar' => 'st_paquete', 'verificar' => 'st_verify', 'informe' => 'st_report');
+    }
     return array(
         'bienvenida' => 'st_inicio', 'paquete' => 'st_paquete', 'requisitos' => 'st_requisitos', 'config' => 'st_config',
         'extraer' => 'st_extraer', 'instalar' => 'st_instalar', 'finalizar' => 'st_listo',
@@ -3263,6 +3605,7 @@ function di_already_installed_screen($cfg)
     echo '<div class="msg warn">' . di_h(di_t('gi_msg')) . ($ver ? ' &mdash; ' . di_h(di_t('gi_ver', array('{s}' => $ver))) : '') . '</div>';
     echo '<a class="choice" href="' . di_h($base) . '/"><div class="h">' . di_h(di_t('gi_open_h')) . '</div><div class="d">' . di_h(di_t('gi_open_d')) . '</div></a>';
     echo '<a class="choice" href="?paso=actualizar"><div class="h">' . di_h(di_t('gi_upd_h')) . '</div><div class="d">' . di_h(di_t('gi_upd_d')) . '</div></a>';
+    echo '<a class="choice" href="?paso=reparar"><div class="h">' . di_h(di_t('gi_rep_h')) . '</div><div class="d">' . di_h(di_t('gi_rep_d')) . '</div></a>';
     $conf = json_encode(di_t('gi_re_confirm'));
     echo '<a class="choice" href="?paso=paquete&modo=full&confirm=reinstall" onclick="return confirm(' . di_h($conf) . ')"><div class="h">' . di_h(di_t('gi_re_h')) . '</div><div class="d">' . di_h(di_t('gi_re_d')) . '</div></a>';
     echo '<p class="dim" style="margin-top:14px">' . di_h(di_t('gi_re')) . '</p>';
@@ -3542,7 +3885,7 @@ $ediReinstall = !empty($cfgExisting['confirm_reinstall'])                 // rei
 $ediIntentional = $ediInUpdate || $ediReinstall;
 
 // Pasos que pertenecen a un flujo ya iniciado: no deben mostrar la pantalla de elección.
-$ediFlowSteps = array('finalizar', 'redir', 'instalar', 'extraer', 'descargar', 'migrar', 'actualizar');
+$ediFlowSteps = array('finalizar', 'redir', 'instalar', 'extraer', 'descargar', 'migrar', 'actualizar', 'reparar', 'verificar', 'informe');
 
 // Autolimpieza: solo si una instalación NUESTRA (full/simple) terminó y el instalador
 // quedó abandonado, se autodestruye. NO se aplica a flujos de actualización/reinstalación
@@ -3763,6 +4106,170 @@ if ($paso === 'actualizar') {
     exit;
 }
 
+if ($paso === 'reparar') {
+    $GLOBALS['di_force_mode'] = 'repair';
+    $installedDb = di_read_installed_conf(DI_DIR);
+    di_header(di_t('st_repair'), 'reparar');
+    $fsVer = di_fs_version(DI_DIR);
+    $dbVer = $installedDb ? di_db_version(array('db' => $installedDb)) : null;
+    $instVer = $fsVer ?: ($dbVer ?: '');
+    $zips = di_find_zips();
+    $prev = di_load_config();
+    // Prefijamos la versión a descargar con la INSTALADA (la reparación coteja la misma versión).
+    $pp = is_array($prev) ? $prev : array();
+    if (empty($pp['download_version']) && $instVer) {
+        $pp['download_version'] = $instVer;
+    }
+    ?>
+<div class="win"><div class="t"><?php echo di_h(di_t('rp_title')); ?></div><div class="b">
+    <table class="kv">
+        <tr><td class="s"><?php echo di_h(di_t('up_curver')); ?></td><td><span class="amber"><?php echo di_h($instVer ?: di_t('cf_undef')); ?></span></td></tr>
+    </table>
+    <div class="dim" style="margin-top:8px">// <?php echo di_h(di_t('rp_intro')); ?></div>
+    <div class="msg warn" style="margin-top:10px"><?php echo di_h(di_t('rp_samever', array('{s}' => $instVer ?: '?'))); ?></div>
+</div></div>
+<?php if (!empty($GLOBALS['formError'])) {
+        echo '<div class="msg err">';
+        foreach ($GLOBALS['formError'] as $e) {
+            echo '· ' . di_h($e) . '<br>';
+        }
+        echo '</div>';
+    } ?>
+<form method="post" action="<?php echo DI_SELF; ?>?paso=reparar">
+    <input type="hidden" name="accion" value="reparar">
+    <?php di_package_picker($pp, $zips); ?>
+    <div class="row">
+        <a class="btn dim" href="?paso=bienvenida"><?php echo di_h(di_t('b_back')); ?></a>
+        <button class="btn amber" type="submit"><?php echo di_h(di_t('rp_start')); ?></button>
+    </div>
+</form>
+<?php
+    di_footer();
+    exit;
+}
+
+if ($paso === 'verificar') {
+    $cfg = di_load_config();
+    if (!$cfg || ($cfg['mode'] ?? '') !== 'repair') {
+        header('Location: ' . DI_SELF . '?paso=bienvenida');
+        exit;
+    }
+    $GLOBALS['di_force_mode'] = 'repair';
+    di_header(di_t('st_verify'), 'verificar');
+    ?>
+<div class="win"><div class="t"><?php echo di_h(di_t('vf_title')); ?></div><div class="b">
+<div class="pbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="pbar"><i id="bar"></i><span id="pct">0%</span></div>
+<pre class="log" id="log" aria-live="polite"></pre>
+<div class="msg err" id="err" style="display:none" role="alert"></div>
+<div class="row"><span class="dim"><?php echo di_h(di_t('vf_note')); ?></span>
+<a class="btn" id="next" style="display:none" href="?paso=informe"><?php echo di_h(di_t('b_continue')); ?></a></div>
+</div></div>
+<script>
+  var T=<?php echo json_encode(array('start' => di_t('vf_start'), 'chk' => di_t('vf_chk'), 'comp' => di_t('vf_comp'), 'err' => di_t('err'), 'retry' => di_t('dl_retry'), 'net' => di_t('net'), 'rb' => di_t('retrying_block'), 'nf' => di_t('net_fail'))); ?>;
+  var log=document.getElementById('log'),bar=document.getElementById('bar'),pct=document.getElementById('pct'),pbar=document.getElementById('pbar'),
+      errb=document.getElementById('err'),next=document.getElementById('next'),cur=null;
+  function pad(n,w){n=''+n;while(n.length<w)n='0'+n;return n;}
+  function ts(){var d=new Date();return pad(d.getHours(),2)+':'+pad(d.getMinutes(),2)+':'+pad(d.getSeconds(),2);}
+  function put(s){ if(cur){cur.remove();cur=null;} log.insertAdjacentText('beforeend',s+'\n'); cur=document.createElement('span'); cur.className='cursor'; log.appendChild(cur); log.scrollTop=log.scrollHeight; }
+  function fail(m,off){errb.style.display='block';errb.innerHTML=T.err+' '+m+'<br><button class="btn" onclick="errb.style.display=\'none\';step('+off+',0)">'+T.retry+'</button>';}
+  put(ts()+'  '+T.start);
+  function step(offset,tries){
+    tries=tries||0;
+    fetch('<?php echo DI_SELF; ?>?ajax=comparar&offset='+offset,{cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(d.error){put('  !! '+d.error);fail(d.error,offset);return;}
+        var p=d.total?Math.round(d.next/d.total*100):100;
+        bar.style.width=p+'%';pct.textContent=p+'%';pbar.setAttribute('aria-valuenow',p);
+        put(ts()+'  '+T.chk.replace('{c}',d.checked).replace('{m}',d.modified).replace('{k}',d.missing)+'  '+p+'%');
+        if(d.done){ put(ts()+'  '+T.comp.replace('{m}',d.modified).replace('{k}',d.missing)); next.style.display='inline-block'; setTimeout(function(){location.href='?paso=informe';},800); }
+        else step(d.next,0);
+      })
+      .catch(function(e){ if(tries<5){ put(ts()+'  '+T.rb.replace('{off}',offset).replace('{try}',tries+1)); setTimeout(function(){step(offset,tries+1);},1500*(tries+1)); } else { put('  !! '+T.net+' '+e); fail(T.nf.replace('{off}',offset)+' '+e,offset); } });
+  }
+  step(0,0);
+</script>
+<?php
+    di_footer();
+    exit;
+}
+
+if ($paso === 'informe') {
+    $cfg = di_load_config();
+    if (!$cfg || ($cfg['mode'] ?? '') !== 'repair') {
+        header('Location: ' . DI_SELF . '?paso=bienvenida');
+        exit;
+    }
+    $GLOBALS['di_force_mode'] = 'repair';
+    $res = di_repair_result();
+    $modified = $res['modified'] ?? array();
+    $missing = $res['missing'] ?? array();
+    $checked = $res['checked'] ?? 0;
+    $total = count($modified) + count($missing);
+    $base = rtrim($cfg['baseurl'] ?? di_self_base_url(), '/');
+    di_header(di_t('st_report'), 'informe');
+    ?>
+<div class="win"><div class="t"><?php echo di_h(di_t('ir_title')); ?></div><div class="b">
+<table class="kv">
+    <tr><td class="s"><span class="tagOK">[ OK ]</span></td><td><?php echo di_h(di_t('ir_checked', array('{n}' => $checked))); ?></td></tr>
+    <tr><td class="s"><?php echo $total ? '<span class="tagWARN">[diff]</span>' : '<span class="tagOK">[ OK ]</span>'; ?></td><td><?php echo di_h(di_t('ir_summary', array('{m}' => count($modified), '{k}' => count($missing)))); ?></td></tr>
+</table>
+<?php if ($total === 0) { ?>
+    <div class="msg ok" style="margin-top:12px"><?php echo di_h(di_t('ir_clean')); ?></div>
+    <div class="row"><span></span><a class="btn" href="<?php echo di_h($base); ?>/"><?php echo di_h(di_t('b_open')); ?> &gt;</a></div>
+<?php } else {
+        $show = array_slice(array_merge(
+            array_map(function ($f) {
+                return array('MOD', $f);
+            }, $modified),
+            array_map(function ($f) {
+                return array('DEL', $f);
+            }, $missing)
+        ), 0, 600);
+        ?>
+    <pre class="log" style="height:280px"><?php
+        foreach ($show as $row) {
+            echo ($row[0] === 'MOD' ? '~ ' : '+ ') . di_h($row[1]) . "\n";
+        }
+        if ($total > count($show)) {
+            echo '... (' . ($total - count($show)) . ' ' . di_h(di_t('ir_more')) . ")\n";
+        }
+    ?></pre>
+    <div class="hint"><?php echo di_h(di_t('ir_legend')); ?></div>
+    <div class="row">
+        <a class="btn dim" href="?ajax=repairzip" target="_blank" rel="noopener"><?php echo di_h(di_t('ir_dlzip')); ?></a>
+        <button class="btn amber" id="dorep" onclick="reparar()"><?php echo di_h(di_t('ir_repair', array('{n}' => $total))); ?></button>
+    </div>
+    <pre class="log" id="rlog" style="height:80px;margin-top:12px;display:none"></pre>
+    <div class="row" id="donerow" style="display:none"><span></span><a class="btn" href="<?php echo di_h($base); ?>/"><?php echo di_h(di_t('b_open')); ?> &gt;</a> <button class="btn dim" onclick="limpiar()"><?php echo di_h(di_t('ir_clean_btn')); ?></button></div>
+<?php } ?>
+</div></div>
+<?php if ($total > 0) { ?>
+<script>
+  var T=<?php echo json_encode(array('confirm' => di_t('ir_confirm', array('{n}' => $total)), 'working' => di_t('ir_working'), 'done' => di_t('ir_done'), 'fail' => di_t('ir_fail'), 'cleaning' => di_t('fn_cleaning'))); ?>;
+  var rlog=document.getElementById('rlog'),donerow=document.getElementById('donerow'),appurl=<?php echo json_encode($base . '/'); ?>;
+  function rput(s){ rlog.style.display='block'; rlog.textContent+=s+'\n'; rlog.scrollTop=rlog.scrollHeight; }
+  function reparar(){
+    if(!confirm(T.confirm))return;
+    var b=document.getElementById('dorep');b.disabled=true;b.textContent=T.working;
+    rput(T.working);
+    fetch('<?php echo DI_SELF; ?>?ajax=reparar',{method:'POST',cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(d){ if(d.ok){rput(d.msg||T.done);donerow.style.display='flex';}else{rput((d.msg||T.fail));b.disabled=false;b.textContent='retry';} })
+      .catch(function(e){ rput(T.fail+' '+e);b.disabled=false; });
+  }
+  function limpiar(){
+    fetch('<?php echo DI_SELF; ?>?ajax=limpiar',{method:'POST',cache:'no-store'})
+      .then(function(r){return r.json();}).then(function(d){ if(d&&d.appurl)appurl=d.appurl; location.href=appurl; })
+      .catch(function(){ location.href=appurl; });
+  }
+</script>
+<?php } ?>
+<?php
+    di_footer();
+    exit;
+}
+
 if ($paso === 'config') {
     $prev = di_load_config();
     if (!$prev) {
@@ -3892,9 +4399,10 @@ if ($paso === 'descargar') {
     }
     $dlMode = $cfg['mode'] ?? 'full';
     $GLOBALS['di_force_mode'] = $dlMode;
-    di_header('Descarga', $dlMode === 'update' ? 'actualizar' : 'paquete');
+    $dlCur = ($dlMode === 'update') ? 'actualizar' : (($dlMode === 'repair') ? 'reparar' : 'paquete');
+    di_header('Descarga', $dlCur);
     $ver = $cfg['download_version'];
-    $nextStep = ($dlMode === 'full') ? 'requisitos' : 'extraer';
+    $nextStep = ($dlMode === 'repair') ? 'verificar' : (($dlMode === 'full') ? 'requisitos' : 'extraer');
     ?>
 <div class="win"><div class="t"><?php echo di_h(di_t('dl_title', array('{ver}' => $ver))); ?></div><div class="b">
 <div class="pbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="pbar"><i id="bar"></i><span id="pct">0%</span></div>

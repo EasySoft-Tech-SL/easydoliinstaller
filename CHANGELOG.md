@@ -2,6 +2,15 @@
 
 Todos los cambios notables de EasyDoliInstaller.
 
+## [1.8.0] - 2026-06-17
+
+### Añadido — MODO REPARAR (verificar integridad y restaurar)
+- Nuevo tercer modo junto a **instalar** y **actualizar**. Sobre un Dolibarr ya instalado, la pantalla de detección ofrece ahora **Abrir / Actualizar / Reparar / Reinstalar**. Reparar:
+  - Coteja la instalación **fichero a fichero** con el paquete **OFICIAL de la misma versión** (descargado o ZIP local), por bloques con barra de progreso y log en vivo. Compara por hash el contenido oficial (del ZIP) contra el fichero en disco.
+  - Genera un **informe visual** de los ficheros que **difieren** (`~ modificado`) o **faltan** (`+ ausente`). Excluye `conf/`, `custom/` y `documents/` (datos/config del usuario).
+  - Permite **descargar un ZIP** con los ficheros afectados (copia previa) y, con **confirmación**, los **restaura** desde el paquete oficial (sobrescribe los modificados y recrea los ausentes). Antes de sobrescribir guarda automáticamente el zip de copia.
+- Probado e2e: instalación 3.9.0, manipulación del core (1 fichero modificado + 1 borrado) → el informe detecta ambos, el ZIP de afectados los contiene y la reparación los restaura al estado oficial (md5 coincidente / fichero recreado).
+
 ## [1.7.3] - 2026-06-17
 
 ### Corregido — la descarga del dump de la BD ya funciona en actualizar
