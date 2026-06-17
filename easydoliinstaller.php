@@ -50,7 +50,7 @@
 @ignore_user_abort(true);
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE & ~E_WARNING);
 
-define('DI_VERSION', '1.7.2');
+define('DI_VERSION', '1.7.3');
 define('DI_DIR', __DIR__);
 define('DI_SELF', basename(__FILE__));
 define('DI_TMPDIR', DI_DIR . '/__doli_installer_tmp__');
@@ -234,6 +234,9 @@ function di_dict()
         'mg_db' => 'migrate database {from} -> {to}', 'mg_data' => 'migrate data {from} -> {to}',
         'mg_final' => 'finalize and lock ({s})', 'mg_starting' => 'starting migration',
         'mg_finished' => 'all migrations done', 'mg_openinstall' => 'OPEN NATIVE WIZARD',
+        'mg_backup' => 'back up database (restore point)',
+        'up_bk_ok' => 'database backup saved ({s}, {n} KB)', 'up_bk_warn' => 'could not auto-save the DB backup ({s}); continuing — restore from your manual dump if needed', 'up_bk_pg' => 'PostgreSQL: auto-backup skipped (use pg_dump); continuing',
+        'up_rollback_hint' => 'Rollback point: a DB dump is saved as {s} in your documents folder. To roll back: restore that .sql and put back the previous Dolibarr files.',
         'pk_nodown' => '(only {s} or newer)',
         'e_exists' => 'A Dolibarr is already installed here. Use Update, or confirm a reinstall.',
         'fn_title_up' => 'UPGRADE COMPLETE', 'fn_op_up' => 'dolibarr upgraded', 'fn_upgraded' => 'version: {s}',
@@ -381,6 +384,9 @@ function di_dict()
         'mg_db' => 'migrar base de datos {from} -> {to}', 'mg_data' => 'migrar datos {from} -> {to}',
         'mg_final' => 'finalizar y bloquear ({s})', 'mg_starting' => 'iniciando migración',
         'mg_finished' => 'todas las migraciones hechas', 'mg_openinstall' => 'ABRIR ASISTENTE NATIVO',
+        'mg_backup' => 'copia de seguridad de la BD (punto de restauración)',
+        'up_bk_ok' => 'copia de la BD guardada ({s}, {n} KB)', 'up_bk_warn' => 'no se pudo auto-guardar la copia de la BD ({s}); se continúa — restaura desde tu dump manual si hiciera falta', 'up_bk_pg' => 'PostgreSQL: copia automática omitida (usa pg_dump); se continúa',
+        'up_rollback_hint' => 'Punto de rollback: se guarda un dump de la BD como {s} en tu carpeta documents. Para revertir: restaura ese .sql y repón los ficheros de la versión anterior.',
         'pk_nodown' => '(solo {s} o superior)',
         'e_exists' => 'Ya hay un Dolibarr instalado aquí. Usa Actualizar, o confirma una reinstalación.',
         'fn_title_up' => 'ACTUALIZACIÓN COMPLETA', 'fn_op_up' => 'dolibarr actualizado', 'fn_upgraded' => 'versión: {s}',
@@ -528,6 +534,9 @@ function di_dict()
         'mg_db' => 'Datenbank migrieren {from} -> {to}', 'mg_data' => 'Daten migrieren {from} -> {to}',
         'mg_final' => 'abschließen und sperren ({s})', 'mg_starting' => 'starte Migration',
         'mg_finished' => 'alle Migrationen erledigt', 'mg_openinstall' => 'NATIVEN ASSISTENTEN ÖFFNEN',
+        'mg_backup' => 'Datenbank sichern (Wiederherstellungspunkt)',
+        'up_bk_ok' => 'Datenbanksicherung gespeichert ({s}, {n} KB)', 'up_bk_warn' => 'DB-Sicherung konnte nicht automatisch gespeichert werden ({s}); es wird fortgefahren — bei Bedarf aus Ihrem manuellen Dump wiederherstellen', 'up_bk_pg' => 'PostgreSQL: Auto-Sicherung übersprungen (pg_dump verwenden); es wird fortgefahren',
+        'up_rollback_hint' => 'Rollback-Punkt: ein DB-Dump wird als {s} im documents-Ordner gespeichert. Zum Zurückrollen: dieses .sql wiederherstellen und die vorherigen Dolibarr-Dateien zurücklegen.',
         'pk_nodown' => '(nur {s} oder neuer)',
         'e_exists' => 'Hier ist bereits ein Dolibarr installiert. Nutzen Sie Aktualisieren oder bestätigen Sie eine Neuinstallation.',
         'fn_title_up' => 'UPGRADE ABGESCHLOSSEN', 'fn_op_up' => 'dolibarr aktualisiert', 'fn_upgraded' => 'Version: {s}',
@@ -675,6 +684,9 @@ function di_dict()
         'mg_db' => 'migrer la base {from} -> {to}', 'mg_data' => 'migrer les données {from} -> {to}',
         'mg_final' => 'finaliser et verrouiller ({s})', 'mg_starting' => 'démarrage de la migration',
         'mg_finished' => 'toutes les migrations effectuées', 'mg_openinstall' => 'OUVRIR L\'ASSISTANT NATIF',
+        'mg_backup' => 'sauvegarde de la base (point de restauration)',
+        'up_bk_ok' => 'sauvegarde de la base enregistrée ({s}, {n} Ko)', 'up_bk_warn' => 'impossible d\'enregistrer automatiquement la sauvegarde ({s}) ; on continue — restaurez depuis votre dump manuel si nécessaire', 'up_bk_pg' => 'PostgreSQL : sauvegarde auto ignorée (utilisez pg_dump) ; on continue',
+        'up_rollback_hint' => 'Point de rollback : un dump de la base est enregistré sous {s} dans votre dossier documents. Pour revenir en arrière : restaurez ce .sql et remettez les fichiers de la version précédente.',
         'pk_nodown' => '(seulement {s} ou plus récent)',
         'e_exists' => 'Un Dolibarr est déjà installé ici. Utilisez Mettre à jour, ou confirmez une réinstallation.',
         'fn_title_up' => 'MISE À JOUR TERMINÉE', 'fn_op_up' => 'dolibarr mis à jour', 'fn_upgraded' => 'version : {s}',
@@ -822,6 +834,9 @@ function di_dict()
         'mg_db' => 'migra database {from} -> {to}', 'mg_data' => 'migra dati {from} -> {to}',
         'mg_final' => 'finalizza e blocca ({s})', 'mg_starting' => 'avvio migrazione',
         'mg_finished' => 'tutte le migrazioni eseguite', 'mg_openinstall' => 'APRI ASSISTENTE NATIVO',
+        'mg_backup' => 'backup del database (punto di ripristino)',
+        'up_bk_ok' => 'backup del database salvato ({s}, {n} KB)', 'up_bk_warn' => 'impossibile salvare automaticamente il backup ({s}); si continua — ripristina dal tuo dump manuale se necessario', 'up_bk_pg' => 'PostgreSQL: backup automatico saltato (usa pg_dump); si continua',
+        'up_rollback_hint' => 'Punto di rollback: un dump del DB viene salvato come {s} nella cartella documents. Per ripristinare: ripristina quel .sql e rimetti i file della versione precedente.',
         'pk_nodown' => '(solo {s} o superiore)',
         'e_exists' => 'Qui è già installato un Dolibarr. Usa Aggiorna, oppure conferma una reinstallazione.',
         'fn_title_up' => 'AGGIORNAMENTO COMPLETATO', 'fn_op_up' => 'dolibarr aggiornato', 'fn_upgraded' => 'versione: {s}',
@@ -2289,7 +2304,7 @@ function di_find_lock($cfg)
  */
 function di_upgrade_chain($fromMajor, $toMajor, $targetFull)
 {
-    $subs = array();
+    $subs = array('backup'); // punto de restauración (dump de BD) ANTES de tocar nada
     for ($v = $fromMajor; $v < $toMajor; $v++) {
         $range = $v . '.0.0-' . ($v + 1) . '.0.0';
         $subs[] = 'up:' . $range;
@@ -2359,6 +2374,23 @@ function di_run_upgrade_substep($cfg, $sub)
     $lang = !empty($cfg['lang']) ? $cfg['lang'] : 'auto';
     list($kind, $range) = array_pad(explode(':', $sub, 2), 2, '');
     list($from, $to) = array_pad(explode('-', $range, 2), 2, '');
+
+    if ($kind === 'backup') {
+        // Punto de restauración: vuelca la BD a un fichero protegido que sobrevive a la
+        // limpieza. Es best-effort: si falla, avisamos pero NO abortamos (el usuario
+        // también pudo descargar el dump manualmente en el paso anterior).
+        if ((isset($cfg['db']['type']) ? $cfg['db']['type'] : 'mysqli') !== 'mysqli') {
+            return array('ok' => true, 'msg' => di_t('up_bk_pg'));
+        }
+        $path = di_rollback_dump_path($cfg);
+        list($ok, $bytes, $err) = di_dump_db_file($cfg, $path);
+        if (!$ok) {
+            di_log('backup rollback FAIL: ' . $err);
+            return array('ok' => true, 'msg' => di_t('up_bk_warn', array('{s}' => $err)));
+        }
+        di_log('backup rollback OK: ' . $path . ' (' . $bytes . ' bytes)');
+        return array('ok' => true, 'msg' => di_t('up_bk_ok', array('{s}' => basename($path), '{n}' => max(1, (int) round($bytes / 1024)))));
+    }
 
     if ($kind === 'up' || $kind === 'up2') {
         $script = ($kind === 'up') ? 'upgrade.php' : 'upgrade2.php';
@@ -2492,7 +2524,65 @@ function di_merge_keep($from, $to)
 }
 
 /**
- * Vuelca un backup lógico de la base de datos como descarga .sql (best-effort).
+ * Núcleo del volcado MySQL/MariaDB: escribe estructura + datos en el handle dado
+ * (php://output para descarga, o un fichero). Devuelve [ok, error, bytes].
+ */
+function di_dump_mysql_to($cfg, $fh)
+{
+    $db = isset($cfg['db']) ? $cfg['db'] : array();
+    $dbname = isset($db['name']) ? $db['name'] : 'dolibarr';
+    if (!function_exists('mysqli_connect')) {
+        return array(false, 'mysqli no disponible', 0);
+    }
+    mysqli_report(MYSQLI_REPORT_OFF);
+    $m = @mysqli_connect($db['host'], $db['user'], $db['pass'], $dbname, (int) (($db['port'] ?? 3306) ?: 3306));
+    if (!$m) {
+        return array(false, mysqli_connect_error(), 0);
+    }
+    @mysqli_set_charset($m, 'utf8');
+    $bytes = 0;
+    $w = function ($s) use ($fh, &$bytes) {
+        $bytes += fwrite($fh, $s);
+    };
+    $w("-- EasyDoliInstaller MySQL dump of `" . $dbname . "`\n");
+    $w("SET FOREIGN_KEY_CHECKS=0;\nSET NAMES utf8;\n\n");
+    $tables = array();
+    if ($r = mysqli_query($m, 'SHOW TABLES')) {
+        while ($row = mysqli_fetch_row($r)) {
+            $tables[] = $row[0];
+        }
+    }
+    foreach ($tables as $t) {
+        $tq = '`' . str_replace('`', '``', $t) . '`';
+        $w("DROP TABLE IF EXISTS $tq;\n");
+        if ($r = mysqli_query($m, "SHOW CREATE TABLE $tq")) {
+            $row = mysqli_fetch_row($r);
+            if (isset($row[1])) {
+                $w($row[1] . ";\n\n");
+            }
+        }
+        $res = mysqli_query($m, "SELECT * FROM $tq", MYSQLI_USE_RESULT);
+        if ($res) {
+            $nf = mysqli_field_count($m);
+            while ($row = mysqli_fetch_row($res)) {
+                $vals = array();
+                for ($i = 0; $i < $nf; $i++) {
+                    $vals[] = is_null($row[$i]) ? 'NULL' : "'" . mysqli_real_escape_string($m, (string) $row[$i]) . "'";
+                }
+                $w("INSERT INTO $tq VALUES (" . implode(',', $vals) . ");\n");
+            }
+            mysqli_free_result($res);
+            $w("\n");
+            @flush();
+        }
+    }
+    $w("SET FOREIGN_KEY_CHECKS=1;\n");
+    mysqli_close($m);
+    return array(true, '', $bytes);
+}
+
+/**
+ * Vuelca un backup lógico de la base de datos como DESCARGA .sql (best-effort).
  * MySQL/MariaDB: estructura + datos (streaming). PostgreSQL: aviso (usar pg_dump).
  */
 function di_stream_backup($cfg)
@@ -2506,58 +2596,62 @@ function di_stream_backup($cfg)
     while (ob_get_level() > 0) {
         @ob_end_flush();
     }
-
     if ($type !== 'mysqli') {
-        echo "-- EasyDoliInstaller backup\n";
-        echo "-- PostgreSQL: el volcado automatico no esta disponible aqui. Use pg_dump:\n";
+        echo "-- EasyDoliInstaller backup\n-- PostgreSQL: el volcado automatico no esta disponible aqui. Use pg_dump:\n";
         echo "--   pg_dump -h " . (isset($db['host']) ? $db['host'] : 'localhost') . " -U " . (isset($db['user']) ? $db['user'] : 'user') . " " . $dbname . " > backup.sql\n";
         return;
     }
-    if (!function_exists('mysqli_connect')) {
-        echo "-- mysqli no disponible: no se puede volcar automaticamente.\n";
-        return;
+    $fh = fopen('php://output', 'wb');
+    list($ok, $err) = di_dump_mysql_to($cfg, $fh);
+    if (!$ok) {
+        fwrite($fh, "-- ERROR: $err\n");
     }
-    mysqli_report(MYSQLI_REPORT_OFF);
-    $m = @mysqli_connect($db['host'], $db['user'], $db['pass'], $dbname, (int) ($db['port'] ?: 3306));
-    if (!$m) {
-        echo "-- conexion fallida: " . mysqli_connect_error() . "\n";
-        return;
+    fclose($fh);
+}
+
+/**
+ * Ruta del dump de rollback automático. Se guarda en el directorio de documentos
+ * (data root): está protegido por web (.htaccess de Dolibarr) y SOBREVIVE a la
+ * autolimpieza del instalador (que borra el temporal), por lo que sigue disponible
+ * como punto de restauración tras la actualización.
+ */
+function di_rollback_dump_path($cfg)
+{
+    $dbname = isset($cfg['db']['name']) ? $cfg['db']['name'] : 'dolibarr';
+    $safe = preg_replace('/[^A-Za-z0-9_.\-]/', '_', $dbname);
+    $dataRoot = null;
+    $c = @file_get_contents($cfg['target'] . '/conf/conf.php');
+    if ($c && preg_match('/dolibarr_main_data_root\s*=\s*[\'"]([^\'"]+)[\'"]/', $c, $m)) {
+        $dataRoot = $m[1];
     }
-    @mysqli_set_charset($m, 'utf8');
-    echo "-- EasyDoliInstaller MySQL dump of `" . $dbname . "`\n";
-    echo "SET FOREIGN_KEY_CHECKS=0;\nSET NAMES utf8;\n\n";
-    $tables = array();
-    if ($r = mysqli_query($m, 'SHOW TABLES')) {
-        while ($row = mysqli_fetch_row($r)) {
-            $tables[] = $row[0];
-        }
+    if (!$dataRoot || !is_dir($dataRoot)) {
+        $sib = preg_replace('#/[^/]+$#', '/documents', $cfg['target']);
+        $dataRoot = is_dir($sib) ? $sib : $cfg['target'] . '/documents';
     }
-    foreach ($tables as $t) {
-        $tq = '`' . str_replace('`', '``', $t) . '`';
-        echo "DROP TABLE IF EXISTS $tq;\n";
-        if ($r = mysqli_query($m, "SHOW CREATE TABLE $tq")) {
-            $row = mysqli_fetch_row($r);
-            if (isset($row[1])) {
-                echo $row[1] . ";\n\n";
-            }
-        }
-        $res = mysqli_query($m, "SELECT * FROM $tq", MYSQLI_USE_RESULT);
-        if ($res) {
-            $nf = mysqli_field_count($m);
-            while ($row = mysqli_fetch_row($res)) {
-                $vals = array();
-                for ($i = 0; $i < $nf; $i++) {
-                    $vals[] = is_null($row[$i]) ? 'NULL' : "'" . mysqli_real_escape_string($m, (string) $row[$i]) . "'";
-                }
-                echo "INSERT INTO $tq VALUES (" . implode(',', $vals) . ");\n";
-            }
-            mysqli_free_result($res);
-            echo "\n";
-            @flush();
-        }
+    if (!is_dir($dataRoot)) {
+        @mkdir($dataRoot, 0755, true);
     }
-    echo "SET FOREIGN_KEY_CHECKS=1;\n";
-    mysqli_close($m);
+    return $dataRoot . '/easydoliinstaller-rollback-' . $safe . '.sql';
+}
+
+/** Vuelca la BD a un fichero protegido del servidor (punto de restauración). [ok, bytes, error]. */
+function di_dump_db_file($cfg, $path)
+{
+    $db = isset($cfg['db']) ? $cfg['db'] : array();
+    if ((isset($db['type']) ? $db['type'] : 'mysqli') !== 'mysqli') {
+        return array(false, 0, 'pgsql');
+    }
+    $fh = @fopen($path, 'wb');
+    if (!$fh) {
+        return array(false, 0, 'no se pudo escribir ' . $path);
+    }
+    list($ok, $err, $bytes) = di_dump_mysql_to($cfg, $fh);
+    fclose($fh);
+    if (!$ok) {
+        @unlink($path);
+        return array(false, 0, $err);
+    }
+    return array(true, $bytes, '');
 }
 
 /** Extrae un mensaje de error legible del HTML devuelto por un paso. */
@@ -3593,12 +3687,34 @@ if ($paso === 'actualizar') {
         header('Location: ' . DI_SELF . '?paso=bienvenida');
         exit;
     }
+    // Sembramos YA un token de instalación junto con los datos de BD del Dolibarr
+    // existente (leídos de conf.php) ANTES de cualquier salida HTML, para que la
+    // DESCARGA DEL BACKUP funcione aquí (la cookie del token debe emitirse antes de
+    // que di_header() envíe cabeceras; sin token, ?ajax=backup devolvería 403).
+    $prev = di_load_config();
+    $needSeed = !$prev || empty($prev['tok']) || empty($prev['db']['name']);
+    if ($needSeed) {
+        $dbpre = $installedDb;
+        unset($dbpre['data_root'], $dbpre['url_root']);
+        $seed = array('target' => DI_DIR, 'baseurl' => di_self_base_url(), 'db' => $dbpre, 'lang' => 'auto');
+        if ($prev && !empty($prev['tok'])) {
+            $seed['tok'] = $prev['tok'];
+        }
+        if ($prev && !empty($prev['mode'])) {
+            $seed['mode'] = $prev['mode']; // conserva el flujo si ya estaba en curso
+        }
+        di_save_config($seed);
+        $prev = di_load_config();
+    }
+    if ($prev) {
+        di_set_token_cookie($prev['tok'] ?? '');
+    }
+    $hasTok = ($prev && !empty($prev['tok']));
+
     di_header(di_t('st_update'), 'actualizar');
     $fsVer = di_fs_version(DI_DIR);
     $dbVer = di_db_version(array('db' => $installedDb));
     $zips = di_find_zips();
-    $prev = di_load_config();
-    $hasTok = ($prev && !empty($prev['tok']));
     ?>
 <div class="win"><div class="t"><?php echo di_h(di_t('up_detected')); ?></div><div class="b">
     <table class="kv">
@@ -3980,7 +4096,9 @@ if ($paso === 'migrar') {
         list($a, $b) = array_pad(explode('-', $range, 2), 2, '');
         $am = di_ver_major($a);
         $bm = di_ver_major($b);
-        if ($kind === 'up') {
+        if ($kind === 'backup') {
+            $label = di_t('mg_backup');
+        } elseif ($kind === 'up') {
             $label = di_t('mg_db', array('{from}' => $am, '{to}' => $bm));
         } elseif ($kind === 'up2') {
             $label = di_t('mg_data', array('{from}' => $am, '{to}' => $bm));
@@ -3992,6 +4110,9 @@ if ($paso === 'migrar') {
     di_header(di_t('st_migrate'), 'migrar');
     ?>
 <div class="win"><div class="t"><?php echo di_h(di_t('mg_title', array('{from}' => $cfg['from_version'] ?? '?', '{to}' => $cfg['to_version'] ?? '?'))); ?></div><div class="b">
+<?php if (($cfg['db']['type'] ?? 'mysqli') === 'mysqli') {
+        echo '<div class="msg warn" style="font-size:12px">' . di_h(di_t('up_rollback_hint', array('{s}' => basename(di_rollback_dump_path($cfg))))) . '</div>';
+    } ?>
 <pre class="log" id="log" aria-live="polite"></pre>
 <noscript><div class="msg err"><?php echo di_h(di_t('in_noscript', array('{url}' => $cfg['baseurl']))); ?></div></noscript>
 <div class="msg err" id="err" style="display:none" role="alert"></div>

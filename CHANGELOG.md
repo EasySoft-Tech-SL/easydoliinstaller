@@ -2,6 +2,15 @@
 
 Todos los cambios notables de EasyDoliInstaller.
 
+## [1.7.3] - 2026-06-17
+
+### Corregido — la descarga del dump de la BD ya funciona en actualizar
+- El botón **"Descargar copia de la base de datos (.sql)"** aparece y **funciona** en el paso de actualizar. Antes mostraba *"inicia la actualización para habilitar el backup"* y el botón no llegaba a aparecer (catch‑22): el token de instalación se emitía después de `di_header()`, con las cabeceras ya enviadas. Ahora el token se siembra al cargar la página —con los datos de BD leídos del `conf.php` existente— **antes** de cualquier salida, de modo que `?ajax=backup` descarga el `.sql` ahí mismo, antes de confirmar.
+
+### Añadido — punto de restauración automático (rollback)
+- En la **actualización automática**, el primer subpaso vuelca la BD a `documents/easydoliinstaller-rollback-<bd>.sql` (protegido por web y **persistente**: sobrevive a la autolimpieza del instalador) **antes** de tocar nada. Aparece en el log en vivo y una nota indica el fichero y los pasos de rollback (restaurar ese `.sql` + reponer los ficheros de la versión anterior). Best‑effort para MySQL/MariaDB; en PostgreSQL se omite con aviso (usar `pg_dump`). No se realiza restauración automática destructiva.
+- Probado e2e: instalación 3.9.0 + actualización con subpaso `backup` generando el dump (753 KB) en `documents/` y `step5` correcto.
+
 ## [1.7.2] - 2026-06-17
 
 ### Añadido — requisitos según la versión elegida
