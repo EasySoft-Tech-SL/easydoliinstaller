@@ -40,6 +40,7 @@ It ships with a retro **terminal/CRT interface** and a **real live log** of ever
 <tr><td>📥 <b>Autonomous download</b></td><td>Pick a Dolibarr version and it downloads the official package from SourceForge in blocks (real progress bar). Version list pulled live from GitHub. Or use a ZIP you already uploaded.</td></tr>
 <tr><td>⚡ <b>Native-speed unpack</b></td><td><code>ZipArchive::extractTo</code> in C, by blocks — ~17,000 files in seconds, like 7-Zip.</td></tr>
 <tr><td>🤖 <b>Two modes</b></td><td><b>Automatic</b> (DB + tables + admin + lock, zero clicks) or <b>Extract-only</b> (unpack and hand off to Dolibarr's native wizard).</td></tr>
+<tr><td>⬆️ <b>Upgrade existing</b></td><td>Detects an installed Dolibarr and upgrades it: downloads a newer version, <b>preserves</b> <code>conf/</code>, <code>custom/</code> and <code>documents/</code>, and runs every native migration <b>one major at a time in a single pass</b> with a live log (e.g. v6 → v23). No downgrades; optional DB backup.</td></tr>
 <tr><td>🗄️ <b>MySQL &amp; PostgreSQL</b></td><td>Choose the engine; default port and verification adapt automatically.</td></tr>
 <tr><td>🌐 <b>5 languages</b></td><td>English, Español, Deutsch, Français, Italiano — self-contained, with a switcher and browser auto-detection.</td></tr>
 <tr><td>🖥️ <b>CRT UI + live log</b></td><td>Phosphor-green terminal aesthetic; every chunk and step is logged in real time.</td></tr>
@@ -69,6 +70,7 @@ It ships with a retro **terminal/CRT interface** and a **real live log** of ever
 |------|--------------|------|
 | **Automatic** | Unpack → create database + tables + reference data + administrator → lock → self-destruct. **Zero clicks** in the native wizard. | `Start → Package → Requirements → Config → Extract → Install → Done` |
 | **Extract-only** *(expert)* | Just unpack `htdocs` and redirect you to Dolibarr's native `install/` wizard to configure it yourself. | `Start → Package → Extract → native wizard` |
+| **Update** *(existing install)* | Upgrade an installed Dolibarr: replace files (keeping `conf/`, `custom/`, `documents/`) and run **all native migrations in one pass** — or hand off to the native wizard step by step. | `Start → Update → Extract → Migrate → Done` |
 
 ## ⚙️ How it works (automatic mode)
 
@@ -77,6 +79,15 @@ It ships with a retro **terminal/CRT interface** and a **real live log** of ever
 3. Drives Dolibarr's native steps over HTTP: `step1` (config + database) → `step2` (tables + reference data) → `step5` (admin + `install.lock`).
 4. Verifies against the database (core tables, the specific admin user, the lock file).
 5. Cleans up: removes `install/`, the ZIP, the temp dir, and **deletes itself**.
+
+## ⬆️ Upgrading an existing Dolibarr
+
+Drop `easydoliinstaller.php` into the root of an **already installed** Dolibarr and open it: it detects the installation and offers **Open / Update / Reinstall**. Choose **Update** and pick a newer version (the picker only lists versions **≥** the one installed — no downgrades).
+
+- **Automatic (all at once)** — replaces the files **preserving** `conf/conf.php`, your `custom/` modules and `documents/`, then drives Dolibarr's own upgrade across every intermediate major version in a single run (`upgrade.php` → `upgrade2.php` per jump, `step5` to finish), showing a **live log** of each migration. A direct **v6 → v23** jump runs all 17 major migrations in one pass. Per-statement SQL notices are treated as warnings (exactly as the native wizard does); success is confirmed against the version recorded in the database.
+- **Step by step** — replaces the files and hands you off to Dolibarr's native upgrade wizard.
+
+> Upgrades modify the database. A backup is recommended — the wizard offers an optional `.sql` dump (MySQL/MariaDB) before it starts.
 
 ## 🔒 Security
 

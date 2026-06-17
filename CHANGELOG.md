@@ -2,6 +2,24 @@
 
 Todos los cambios notables de EasyDoliInstaller.
 
+## [1.7.0] - 2026-06-17
+
+### Añadido
+- **Modo ACTUALIZAR (upgrade)**: cuando detecta un Dolibarr ya instalado, el asistente ofrece **Abrir / Actualizar / Reinstalar**. La actualización:
+  - Descarga (o usa) una versión superior — **nunca inferior**: el selector solo ofrece versiones ≥ la instalada y se valida también la versión del ZIP local (sin downgrade).
+  - Sustituye los ficheros **preservando** `conf/` (conf.php), `custom/` (módulos del usuario) y `documents/` (datos).
+  - **Dos submodos**: *Automático (del tirón)* — migra N versiones mayores en una sola pasada ejecutando las páginas nativas `upgrade.php` → `upgrade2.php` por cada salto y `step5` al final, con **log en vivo** y verificación de la versión en BD; o *Paso a paso* — sustituye los ficheros y te entrega al asistente nativo de Dolibarr.
+  - **Backup opcional**: aviso destacado + botón de descarga de volcado `.sql` (MySQL/MariaDB; PostgreSQL indica `pg_dump`).
+  - Detección de la versión instalada por BD (`MAIN_VERSION_LAST_UPGRADE`/`MAIN_VERSION_LAST_INSTALL`) y por ficheros (soporta el `version.inc.php` de v23+ y el `DOL_VERSION` literal antiguo).
+  - Los errores SQL por sentencia de las migraciones se tratan como **avisos** (Dolibarr los tolera y continúa, como su asistente nativo); el éxito se decide por la versión final registrada en BD.
+- Probado e2e contra Dolibarr real: instalación 23.0.3, **actualización directa v6 → v23 (17 migraciones mayores, 35 subpasos en una pasada)** y v22 → v23 con SQL real, preservando `conf`/`custom`/datos y recreando `install.lock`.
+
+### Seguridad
+- **Guardarraíl anti-machaque**: extraer/descargar rechazan (HTTP 409) sobrescribir una instalación existente salvo en modo actualizar o reinstalación **confirmada explícitamente**; la pantalla "ya instalado" obliga a elegir (Reinstalar pide confirmación).
+
+### Correcciones
+- Pie de página: licencia mostrada como **MIT** (antes decía GPL-3.0).
+
 ## [1.6.1] - 2026-06-17
 
 ### Licencia

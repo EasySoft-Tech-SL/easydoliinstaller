@@ -17,6 +17,12 @@
  *  Tiene además un MODO ULTRASENCILLO: solo descomprime htdocs y te redirige
  *  al asistente nativo install/ de Dolibarr.
  *
+ *  MODO ACTUALIZAR: si detecta un Dolibarr ya instalado, ofrece ABRIR / ACTUALIZAR /
+ *  REINSTALAR. La actualización descarga una versión superior, sustituye los ficheros
+ *  preservando conf/, custom/ y documents/, y ejecuta las migraciones nativas una major
+ *  a la vez (upgrade.php -> upgrade2.php por salto, step5 al final) con log en vivo;
+ *  o, en modo "paso a paso", te entrega al asistente nativo de Dolibarr. Sin downgrade.
+ *
  *  USO
  *  ---
  *    - Sube a tu hosting (en la carpeta que será la raíz de Dolibarr) SOLO:
@@ -44,7 +50,7 @@
 @ignore_user_abort(true);
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE & ~E_WARNING);
 
-define('DI_VERSION', '1.6.1');
+define('DI_VERSION', '1.7.0');
 define('DI_DIR', __DIR__);
 define('DI_SELF', basename(__FILE__));
 define('DI_TMPDIR', DI_DIR . '/__doli_installer_tmp__');
@@ -192,7 +198,46 @@ function di_dict()
         'fn_cleaning' => 'CLEANING...', 'fn_deleting' => 'deleting install/, .zip and installer ...',
         'fn_removed' => 'installer deleted. redirecting ...', 'fn_manual' => '(manual cleanup needed)',
         'gi_title' => 'NOTICE', 'gi_msg' => 'Dolibarr seems to be ALREADY installed in this directory (conf/conf.php with data exists).',
-        'gi_re' => 'To reinstall from scratch, first delete conf/conf.php and the install.lock file in the documents directory.',
+        'gi_re' => 'Tip: when you are done, delete easydoliinstaller.php from the server.',
+        'st_update' => 'update', 'st_migrate' => 'migrate',
+        'gi_ver' => 'detected version {s}',
+        'gi_open_h' => 'OPEN DOLIBARR', 'gi_open_d' => 'It is already installed — go to the application.',
+        'gi_upd_h' => 'UPDATE / UPGRADE', 'gi_upd_d' => 'Download a newer version and run every migration automatically, with a live log.',
+        'gi_re_h' => 'REINSTALL FROM SCRATCH', 'gi_re_d' => 'Overwrite this Dolibarr and install again. Existing data may be destroyed.',
+        'gi_re_confirm' => 'This will overwrite the existing Dolibarr and its data may be lost. Continue?',
+        'gi_re_warn' => 'Reinstall mode: the current installation will be overwritten. Make a backup first.',
+        'up_detected' => 'EXISTING INSTALLATION DETECTED',
+        'up_curver' => 'current version', 'up_files' => 'files', 'up_db' => 'database',
+        'up_intro' => 'choose the target version and the update mode below.',
+        'up_backup' => 'BACKUP (RECOMMENDED)',
+        'up_warn' => 'An upgrade modifies the database. If it fails midway your data may be left inconsistent. Back up before continuing.',
+        'up_backup_pg' => 'PostgreSQL: automatic dump is not available here. Use pg_dump before upgrading.',
+        'up_backup_btn' => 'DOWNLOAD DATABASE BACKUP (.sql)',
+        'up_backup_hint' => 'Optional MySQL/MariaDB logical dump (structure + data). For very large databases use your usual tool.',
+        'up_backup_later' => 'Start the update to enable the backup download (it needs the installation token).',
+        'up_start' => 'START UPDATE',
+        'up_noconf' => 'No installed Dolibarr found here (conf/conf.php with a database is missing).',
+        'up_nodown' => 'The chosen version ({new}) is older than the installed one ({cur}). Downgrades are not supported.',
+        'up_modet' => 'UPDATE MODE',
+        'up_mode_auto_h' => 'Automatic — migrate N versions in one go',
+        'up_mode_auto_d' => 'Replace the files and run every intermediate migration automatically, one major at a time, with a full live log. Recommended.',
+        'up_mode_manual_h' => 'Step by step — native wizard',
+        'up_mode_manual_d' => 'Replace the files and hand off to Dolibarr\'s own upgrade wizard so you click through each step yourself.',
+        'up_httpfail' => 'The migration step {s} returned HTTP {code}.',
+        'up_migfail' => 'Migration {s} failed.', 'up_migok' => 'migrated {s}',
+        'up_warns' => '({n} SQL notices, ignored as the native wizard does)',
+        'up_done' => 'Upgrade complete. Database version: {s}.',
+        'up_doneish' => 'Upgrade finished (could not verify the version from the database).',
+        'up_finfail' => 'Could not finalize the upgrade. ',
+        'mg_title' => 'MIGRATING {from} -> {to}', 'mg_note' => 'running every migration in sequence ...',
+        'mg_db' => 'migrate database {from} -> {to}', 'mg_data' => 'migrate data {from} -> {to}',
+        'mg_final' => 'finalize and lock ({s})', 'mg_starting' => 'starting migration',
+        'mg_finished' => 'all migrations done', 'mg_openinstall' => 'OPEN NATIVE WIZARD',
+        'pk_nodown' => '(only {s} or newer)',
+        'e_exists' => 'A Dolibarr is already installed here. Use Update, or confirm a reinstall.',
+        'fn_title_up' => 'UPGRADE COMPLETE', 'fn_op_up' => 'dolibarr upgraded', 'fn_upgraded' => 'version: {s}',
+        'rd_title_up' => 'FILES REPLACED — LAUNCHING THE NATIVE UPGRADE WIZARD',
+        'rd_up_warn' => 'Files updated. Handing off to Dolibarr\'s native upgrade wizard to run the migrations.',
         'err' => 'ERROR:', 'net' => 'network:', 'retrying_block' => 'retrying block (offset {off}, attempt {try}) ...',
         'net_fail' => 'Network failure at offset {off}:',
         'ss_nocontact' => 'Could not reach {url} ({s}).',
@@ -298,7 +343,46 @@ function di_dict()
         'fn_cleaning' => 'LIMPIANDO...', 'fn_deleting' => 'borrando install/, .zip e instalador ...',
         'fn_removed' => 'instalador eliminado. redirigiendo ...', 'fn_manual' => '(limpieza manual necesaria)',
         'gi_title' => 'AVISO', 'gi_msg' => 'Parece que Dolibarr YA está instalado en este directorio (existe conf/conf.php con datos).',
-        'gi_re' => 'Para reinstalar desde cero, borra antes conf/conf.php y el archivo install.lock del directorio de documentos.',
+        'gi_re' => 'Consejo: cuando termines, borra easydoliinstaller.php del servidor.',
+        'st_update' => 'actualizar', 'st_migrate' => 'migrar',
+        'gi_ver' => 'versión detectada {s}',
+        'gi_open_h' => 'ABRIR DOLIBARR', 'gi_open_d' => 'Ya está instalado — ir a la aplicación.',
+        'gi_upd_h' => 'ACTUALIZAR', 'gi_upd_d' => 'Descarga una versión superior y ejecuta todas las migraciones automáticamente, con log en vivo.',
+        'gi_re_h' => 'REINSTALAR DESDE CERO', 'gi_re_d' => 'Sobrescribe este Dolibarr e instala de nuevo. Los datos existentes pueden destruirse.',
+        'gi_re_confirm' => 'Esto sobrescribirá el Dolibarr existente y sus datos pueden perderse. ¿Continuar?',
+        'gi_re_warn' => 'Modo reinstalar: la instalación actual será sobrescrita. Haz una copia de seguridad antes.',
+        'up_detected' => 'INSTALACIÓN EXISTENTE DETECTADA',
+        'up_curver' => 'versión actual', 'up_files' => 'ficheros', 'up_db' => 'base de datos',
+        'up_intro' => 'elige la versión de destino y el modo de actualización debajo.',
+        'up_backup' => 'COPIA DE SEGURIDAD (RECOMENDADO)',
+        'up_warn' => 'Una actualización modifica la base de datos. Si falla a medias tus datos pueden quedar inconsistentes. Haz copia antes de continuar.',
+        'up_backup_pg' => 'PostgreSQL: el volcado automático no está disponible aquí. Usa pg_dump antes de actualizar.',
+        'up_backup_btn' => 'DESCARGAR COPIA DE LA BASE DE DATOS (.sql)',
+        'up_backup_hint' => 'Volcado lógico opcional de MySQL/MariaDB (estructura + datos). Para bases muy grandes usa tu herramienta habitual.',
+        'up_backup_later' => 'Inicia la actualización para habilitar la descarga del backup (requiere el token de la instalación).',
+        'up_start' => 'INICIAR ACTUALIZACIÓN',
+        'up_noconf' => 'No se encontró un Dolibarr instalado aquí (falta conf/conf.php con una base de datos).',
+        'up_nodown' => 'La versión elegida ({new}) es anterior a la instalada ({cur}). No se permite bajar de versión.',
+        'up_modet' => 'MODO DE ACTUALIZACIÓN',
+        'up_mode_auto_h' => 'Automático — migra N versiones del tirón',
+        'up_mode_auto_d' => 'Sustituye los ficheros y ejecuta todas las migraciones intermedias automáticamente, una major a la vez, con log en vivo completo. Opción recomendada.',
+        'up_mode_manual_h' => 'Paso a paso — asistente nativo',
+        'up_mode_manual_d' => 'Sustituye los ficheros y te entrega al propio asistente de actualización de Dolibarr para que avances paso a paso.',
+        'up_httpfail' => 'El paso de migración {s} devolvió HTTP {code}.',
+        'up_migfail' => 'La migración {s} falló.', 'up_migok' => 'migrado {s}',
+        'up_warns' => '({n} avisos SQL, ignorados como hace el asistente nativo)',
+        'up_done' => 'Actualización completada. Versión en BD: {s}.',
+        'up_doneish' => 'Actualización terminada (no se pudo verificar la versión en la base de datos).',
+        'up_finfail' => 'No se pudo finalizar la actualización. ',
+        'mg_title' => 'MIGRANDO {from} -> {to}', 'mg_note' => 'ejecutando todas las migraciones en secuencia ...',
+        'mg_db' => 'migrar base de datos {from} -> {to}', 'mg_data' => 'migrar datos {from} -> {to}',
+        'mg_final' => 'finalizar y bloquear ({s})', 'mg_starting' => 'iniciando migración',
+        'mg_finished' => 'todas las migraciones hechas', 'mg_openinstall' => 'ABRIR ASISTENTE NATIVO',
+        'pk_nodown' => '(solo {s} o superior)',
+        'e_exists' => 'Ya hay un Dolibarr instalado aquí. Usa Actualizar, o confirma una reinstalación.',
+        'fn_title_up' => 'ACTUALIZACIÓN COMPLETA', 'fn_op_up' => 'dolibarr actualizado', 'fn_upgraded' => 'versión: {s}',
+        'rd_title_up' => 'FICHEROS SUSTITUIDOS — LANZANDO EL ASISTENTE NATIVO DE ACTUALIZACIÓN',
+        'rd_up_warn' => 'Ficheros actualizados. Te entregamos al asistente nativo de Dolibarr para ejecutar las migraciones.',
         'err' => 'ERROR:', 'net' => 'red:', 'retrying_block' => 'reintentando bloque (offset {off}, intento {try}) ...',
         'net_fail' => 'Fallo de red en offset {off}:',
         'ss_nocontact' => 'No se pudo contactar con {url} ({s}).',
@@ -404,7 +488,46 @@ function di_dict()
         'fn_cleaning' => 'RÄUME AUF...', 'fn_deleting' => 'lösche install/, .zip und Installer ...',
         'fn_removed' => 'Installer gelöscht. leite weiter ...', 'fn_manual' => '(manuelles Aufräumen nötig)',
         'gi_title' => 'HINWEIS', 'gi_msg' => 'Dolibarr scheint in diesem Verzeichnis BEREITS installiert zu sein (conf/conf.php mit Daten vorhanden).',
-        'gi_re' => 'Für eine Neuinstallation löschen Sie zuerst conf/conf.php und die Datei install.lock im documents-Verzeichnis.',
+        'gi_re' => 'Tipp: Löschen Sie easydoliinstaller.php nach Abschluss vom Server.',
+        'st_update' => 'aktualisieren', 'st_migrate' => 'migrieren',
+        'gi_ver' => 'erkannte Version {s}',
+        'gi_open_h' => 'DOLIBARR ÖFFNEN', 'gi_open_d' => 'Bereits installiert — zur Anwendung.',
+        'gi_upd_h' => 'AKTUALISIEREN / UPGRADE', 'gi_upd_d' => 'Eine neuere Version herunterladen und alle Migrationen automatisch ausführen, mit Live-Protokoll.',
+        'gi_re_h' => 'NEU INSTALLIEREN', 'gi_re_d' => 'Dieses Dolibarr überschreiben und neu installieren. Vorhandene Daten können verloren gehen.',
+        'gi_re_confirm' => 'Dies überschreibt das vorhandene Dolibarr und Daten können verloren gehen. Fortfahren?',
+        'gi_re_warn' => 'Neuinstallation: Die aktuelle Installation wird überschrieben. Erstellen Sie zuerst eine Sicherung.',
+        'up_detected' => 'VORHANDENE INSTALLATION ERKANNT',
+        'up_curver' => 'aktuelle Version', 'up_files' => 'Dateien', 'up_db' => 'Datenbank',
+        'up_intro' => 'Wählen Sie unten die Zielversion und den Aktualisierungsmodus.',
+        'up_backup' => 'SICHERUNG (EMPFOHLEN)',
+        'up_warn' => 'Ein Upgrade verändert die Datenbank. Schlägt es mittendrin fehl, können Ihre Daten inkonsistent werden. Sichern Sie vorher.',
+        'up_backup_pg' => 'PostgreSQL: Automatischer Dump ist hier nicht verfügbar. Nutzen Sie pg_dump vor dem Upgrade.',
+        'up_backup_btn' => 'DATENBANK-SICHERUNG HERUNTERLADEN (.sql)',
+        'up_backup_hint' => 'Optionaler logischer MySQL/MariaDB-Dump (Struktur + Daten). Für sehr große Datenbanken Ihr übliches Werkzeug verwenden.',
+        'up_backup_later' => 'Starten Sie die Aktualisierung, um den Download zu aktivieren (benötigt das Installations-Token).',
+        'up_start' => 'AKTUALISIERUNG STARTEN',
+        'up_noconf' => 'Kein installiertes Dolibarr gefunden (conf/conf.php mit Datenbank fehlt).',
+        'up_nodown' => 'Die gewählte Version ({new}) ist älter als die installierte ({cur}). Downgrades werden nicht unterstützt.',
+        'up_modet' => 'AKTUALISIERUNGSMODUS',
+        'up_mode_auto_h' => 'Automatisch — N Versionen in einem Durchgang migrieren',
+        'up_mode_auto_d' => 'Dateien ersetzen und alle Zwischen-Migrationen automatisch ausführen, eine Hauptversion nach der anderen, mit vollständigem Live-Protokoll. Empfohlen.',
+        'up_mode_manual_h' => 'Schritt für Schritt — nativer Assistent',
+        'up_mode_manual_d' => 'Dateien ersetzen und an den Upgrade-Assistenten von Dolibarr übergeben, damit Sie jeden Schritt selbst durchklicken.',
+        'up_httpfail' => 'Der Migrationsschritt {s} lieferte HTTP {code}.',
+        'up_migfail' => 'Migration {s} fehlgeschlagen.', 'up_migok' => 'migriert {s}',
+        'up_warns' => '({n} SQL-Hinweise, ignoriert wie im nativen Assistenten)',
+        'up_done' => 'Upgrade abgeschlossen. Datenbankversion: {s}.',
+        'up_doneish' => 'Upgrade beendet (Version konnte nicht aus der Datenbank verifiziert werden).',
+        'up_finfail' => 'Upgrade konnte nicht abgeschlossen werden. ',
+        'mg_title' => 'MIGRATION {from} -> {to}', 'mg_note' => 'führe alle Migrationen nacheinander aus ...',
+        'mg_db' => 'Datenbank migrieren {from} -> {to}', 'mg_data' => 'Daten migrieren {from} -> {to}',
+        'mg_final' => 'abschließen und sperren ({s})', 'mg_starting' => 'starte Migration',
+        'mg_finished' => 'alle Migrationen erledigt', 'mg_openinstall' => 'NATIVEN ASSISTENTEN ÖFFNEN',
+        'pk_nodown' => '(nur {s} oder neuer)',
+        'e_exists' => 'Hier ist bereits ein Dolibarr installiert. Nutzen Sie Aktualisieren oder bestätigen Sie eine Neuinstallation.',
+        'fn_title_up' => 'UPGRADE ABGESCHLOSSEN', 'fn_op_up' => 'dolibarr aktualisiert', 'fn_upgraded' => 'Version: {s}',
+        'rd_title_up' => 'DATEIEN ERSETZT — STARTE DEN NATIVEN UPGRADE-ASSISTENTEN',
+        'rd_up_warn' => 'Dateien aktualisiert. Übergabe an den nativen Upgrade-Assistenten von Dolibarr für die Migrationen.',
         'err' => 'FEHLER:', 'net' => 'Netz:', 'retrying_block' => 'wiederhole Block (Offset {off}, Versuch {try}) ...',
         'net_fail' => 'Netzwerkfehler bei Offset {off}:',
         'ss_nocontact' => '{url} nicht erreichbar ({s}).',
@@ -510,7 +633,46 @@ function di_dict()
         'fn_cleaning' => 'NETTOYAGE...', 'fn_deleting' => 'suppression de install/, .zip et installateur ...',
         'fn_removed' => 'installateur supprimé. redirection ...', 'fn_manual' => '(nettoyage manuel nécessaire)',
         'gi_title' => 'AVIS', 'gi_msg' => 'Dolibarr semble DÉJÀ installé dans ce répertoire (conf/conf.php avec données existe).',
-        'gi_re' => 'Pour réinstaller de zéro, supprimez d\'abord conf/conf.php et le fichier install.lock du répertoire documents.',
+        'gi_re' => 'Astuce : une fois terminé, supprimez easydoliinstaller.php du serveur.',
+        'st_update' => 'mettre à jour', 'st_migrate' => 'migrer',
+        'gi_ver' => 'version détectée {s}',
+        'gi_open_h' => 'OUVRIR DOLIBARR', 'gi_open_d' => 'Déjà installé — aller à l\'application.',
+        'gi_upd_h' => 'METTRE À JOUR', 'gi_upd_d' => 'Téléchargez une version supérieure et exécutez toutes les migrations automatiquement, avec journal en direct.',
+        'gi_re_h' => 'RÉINSTALLER DE ZÉRO', 'gi_re_d' => 'Écraser ce Dolibarr et réinstaller. Les données existantes peuvent être détruites.',
+        'gi_re_confirm' => 'Cela écrasera le Dolibarr existant et ses données peuvent être perdues. Continuer ?',
+        'gi_re_warn' => 'Mode réinstallation : l\'installation actuelle sera écrasée. Faites une sauvegarde avant.',
+        'up_detected' => 'INSTALLATION EXISTANTE DÉTECTÉE',
+        'up_curver' => 'version actuelle', 'up_files' => 'fichiers', 'up_db' => 'base de données',
+        'up_intro' => 'choisissez la version cible et le mode de mise à jour ci-dessous.',
+        'up_backup' => 'SAUVEGARDE (RECOMMANDÉ)',
+        'up_warn' => 'Une mise à jour modifie la base de données. En cas d\'échec en cours de route, vos données peuvent rester incohérentes. Sauvegardez avant de continuer.',
+        'up_backup_pg' => 'PostgreSQL : le dump automatique n\'est pas disponible ici. Utilisez pg_dump avant la mise à jour.',
+        'up_backup_btn' => 'TÉLÉCHARGER LA SAUVEGARDE DE LA BASE (.sql)',
+        'up_backup_hint' => 'Dump logique MySQL/MariaDB optionnel (structure + données). Pour de très grosses bases, utilisez votre outil habituel.',
+        'up_backup_later' => 'Démarrez la mise à jour pour activer le téléchargement (nécessite le jeton d\'installation).',
+        'up_start' => 'DÉMARRER LA MISE À JOUR',
+        'up_noconf' => 'Aucun Dolibarr installé trouvé ici (conf/conf.php avec une base manquant).',
+        'up_nodown' => 'La version choisie ({new}) est antérieure à celle installée ({cur}). Les rétrogradations ne sont pas prises en charge.',
+        'up_modet' => 'MODE DE MISE À JOUR',
+        'up_mode_auto_h' => 'Automatique — migrer N versions d\'un coup',
+        'up_mode_auto_d' => 'Remplacer les fichiers et exécuter toutes les migrations intermédiaires automatiquement, une version majeure à la fois, avec journal complet en direct. Recommandé.',
+        'up_mode_manual_h' => 'Pas à pas — assistant natif',
+        'up_mode_manual_d' => 'Remplacer les fichiers et passer la main à l\'assistant de mise à jour de Dolibarr pour avancer étape par étape.',
+        'up_httpfail' => 'L\'étape de migration {s} a renvoyé HTTP {code}.',
+        'up_migfail' => 'La migration {s} a échoué.', 'up_migok' => 'migré {s}',
+        'up_warns' => '({n} avis SQL, ignorés comme le fait l\'assistant natif)',
+        'up_done' => 'Mise à jour terminée. Version en base : {s}.',
+        'up_doneish' => 'Mise à jour terminée (impossible de vérifier la version depuis la base).',
+        'up_finfail' => 'Impossible de finaliser la mise à jour. ',
+        'mg_title' => 'MIGRATION {from} -> {to}', 'mg_note' => 'exécution de toutes les migrations en séquence ...',
+        'mg_db' => 'migrer la base {from} -> {to}', 'mg_data' => 'migrer les données {from} -> {to}',
+        'mg_final' => 'finaliser et verrouiller ({s})', 'mg_starting' => 'démarrage de la migration',
+        'mg_finished' => 'toutes les migrations effectuées', 'mg_openinstall' => 'OUVRIR L\'ASSISTANT NATIF',
+        'pk_nodown' => '(seulement {s} ou plus récent)',
+        'e_exists' => 'Un Dolibarr est déjà installé ici. Utilisez Mettre à jour, ou confirmez une réinstallation.',
+        'fn_title_up' => 'MISE À JOUR TERMINÉE', 'fn_op_up' => 'dolibarr mis à jour', 'fn_upgraded' => 'version : {s}',
+        'rd_title_up' => 'FICHIERS REMPLACÉS — LANCEMENT DE L\'ASSISTANT NATIF DE MISE À JOUR',
+        'rd_up_warn' => 'Fichiers mis à jour. Passage à l\'assistant natif de Dolibarr pour exécuter les migrations.',
         'err' => 'ERREUR :', 'net' => 'réseau :', 'retrying_block' => 'nouvelle tentative du bloc (offset {off}, essai {try}) ...',
         'net_fail' => 'Échec réseau à l\'offset {off} :',
         'ss_nocontact' => 'Impossible de joindre {url} ({s}).',
@@ -616,7 +778,46 @@ function di_dict()
         'fn_cleaning' => 'PULIZIA...', 'fn_deleting' => 'eliminazione di install/, .zip e installer ...',
         'fn_removed' => 'installer eliminato. reindirizzamento ...', 'fn_manual' => '(pulizia manuale necessaria)',
         'gi_title' => 'AVVISO', 'gi_msg' => 'Dolibarr sembra GIÀ installato in questa directory (esiste conf/conf.php con dati).',
-        'gi_re' => 'Per reinstallare da zero, elimina prima conf/conf.php e il file install.lock nella directory dei documenti.',
+        'gi_re' => 'Suggerimento: al termine, elimina easydoliinstaller.php dal server.',
+        'st_update' => 'aggiorna', 'st_migrate' => 'migra',
+        'gi_ver' => 'versione rilevata {s}',
+        'gi_open_h' => 'APRI DOLIBARR', 'gi_open_d' => 'Già installato — vai all\'applicazione.',
+        'gi_upd_h' => 'AGGIORNA', 'gi_upd_d' => 'Scarica una versione superiore ed esegui tutte le migrazioni automaticamente, con log in tempo reale.',
+        'gi_re_h' => 'REINSTALLA DA ZERO', 'gi_re_d' => 'Sovrascrivi questo Dolibarr e reinstalla. I dati esistenti possono essere distrutti.',
+        'gi_re_confirm' => 'Questo sovrascriverà il Dolibarr esistente e i suoi dati potrebbero andare persi. Continuare?',
+        'gi_re_warn' => 'Modalità reinstalla: l\'installazione attuale verrà sovrascritta. Fai prima un backup.',
+        'up_detected' => 'INSTALLAZIONE ESISTENTE RILEVATA',
+        'up_curver' => 'versione attuale', 'up_files' => 'file', 'up_db' => 'database',
+        'up_intro' => 'scegli la versione di destinazione e la modalità di aggiornamento qui sotto.',
+        'up_backup' => 'BACKUP (CONSIGLIATO)',
+        'up_warn' => 'Un aggiornamento modifica il database. Se fallisce a metà i tuoi dati possono restare incoerenti. Fai un backup prima di continuare.',
+        'up_backup_pg' => 'PostgreSQL: il dump automatico non è disponibile qui. Usa pg_dump prima dell\'aggiornamento.',
+        'up_backup_btn' => 'SCARICA BACKUP DEL DATABASE (.sql)',
+        'up_backup_hint' => 'Dump logico MySQL/MariaDB opzionale (struttura + dati). Per database molto grandi usa il tuo strumento abituale.',
+        'up_backup_later' => 'Avvia l\'aggiornamento per abilitare il download del backup (richiede il token di installazione).',
+        'up_start' => 'AVVIA AGGIORNAMENTO',
+        'up_noconf' => 'Nessun Dolibarr installato qui (manca conf/conf.php con un database).',
+        'up_nodown' => 'La versione scelta ({new}) è precedente a quella installata ({cur}). I downgrade non sono supportati.',
+        'up_modet' => 'MODALITÀ DI AGGIORNAMENTO',
+        'up_mode_auto_h' => 'Automatico — migra N versioni in un colpo solo',
+        'up_mode_auto_d' => 'Sostituisce i file ed esegue tutte le migrazioni intermedie automaticamente, una major alla volta, con log completo in tempo reale. Consigliato.',
+        'up_mode_manual_h' => 'Passo passo — assistente nativo',
+        'up_mode_manual_d' => 'Sostituisce i file e passa all\'assistente di aggiornamento di Dolibarr per procedere passo passo.',
+        'up_httpfail' => 'Il passo di migrazione {s} ha restituito HTTP {code}.',
+        'up_migfail' => 'La migrazione {s} è fallita.', 'up_migok' => 'migrato {s}',
+        'up_warns' => '({n} avvisi SQL, ignorati come fa l\'assistente nativo)',
+        'up_done' => 'Aggiornamento completato. Versione nel DB: {s}.',
+        'up_doneish' => 'Aggiornamento terminato (impossibile verificare la versione dal database).',
+        'up_finfail' => 'Impossibile finalizzare l\'aggiornamento. ',
+        'mg_title' => 'MIGRAZIONE {from} -> {to}', 'mg_note' => 'esecuzione di tutte le migrazioni in sequenza ...',
+        'mg_db' => 'migra database {from} -> {to}', 'mg_data' => 'migra dati {from} -> {to}',
+        'mg_final' => 'finalizza e blocca ({s})', 'mg_starting' => 'avvio migrazione',
+        'mg_finished' => 'tutte le migrazioni eseguite', 'mg_openinstall' => 'APRI ASSISTENTE NATIVO',
+        'pk_nodown' => '(solo {s} o superiore)',
+        'e_exists' => 'Qui è già installato un Dolibarr. Usa Aggiorna, oppure conferma una reinstallazione.',
+        'fn_title_up' => 'AGGIORNAMENTO COMPLETATO', 'fn_op_up' => 'dolibarr aggiornato', 'fn_upgraded' => 'versione: {s}',
+        'rd_title_up' => 'FILE SOSTITUITI — AVVIO DELL\'ASSISTENTE NATIVO DI AGGIORNAMENTO',
+        'rd_up_warn' => 'File aggiornati. Passaggio all\'assistente nativo di Dolibarr per eseguire le migrazioni.',
         'err' => 'ERRORE:', 'net' => 'rete:', 'retrying_block' => 'nuovo tentativo blocco (offset {off}, tentativo {try}) ...',
         'net_fail' => 'Errore di rete all\'offset {off}:',
         'ss_nocontact' => 'Impossibile contattare {url} ({s}).',
@@ -1146,6 +1347,127 @@ function di_already_installed($cfg = null)
         }
     }
     return false;
+}
+
+/**
+ * Lee los parámetros de conexión del conf.php de un Dolibarr ya instalado.
+ * Devuelve un array tipo $cfg['db'] (+ data_root/url_root) o null si no hay BD configurada.
+ */
+function di_read_installed_conf($target)
+{
+    $c = @file_get_contents($target . '/conf/conf.php');
+    if ($c === false || $c === '') {
+        return null;
+    }
+    $get = function ($name) use ($c) {
+        // valor entre comillas
+        if (preg_match('/\$dolibarr_main_' . preg_quote($name, '/') . '\s*=\s*([\'"])(.*?)\1\s*;/s', $c, $m)) {
+            return $m[2];
+        }
+        // valor numérico sin comillas
+        if (preg_match('/\$dolibarr_main_' . preg_quote($name, '/') . '\s*=\s*([0-9]+)\s*;/', $c, $m)) {
+            return $m[1];
+        }
+        return null;
+    };
+    $name = $get('db_name');
+    if ($name === null || $name === '') {
+        return null;
+    }
+    $type = ($get('db_type') === 'pgsql') ? 'pgsql' : 'mysqli';
+    $host = $get('db_host');
+    $port = (int) $get('db_port');
+    return array(
+        'type' => $type,
+        'host' => ($host !== null && $host !== '') ? $host : 'localhost',
+        'port' => $port > 0 ? $port : ($type === 'pgsql' ? 5432 : 3306),
+        'name' => $name,
+        'prefix' => ($get('db_prefix') !== null && $get('db_prefix') !== '') ? $get('db_prefix') : 'llx_',
+        'user' => (string) $get('db_user'),
+        'pass' => (string) $get('db_pass'),
+        'create' => false,
+        'rootuser' => '',
+        'rootpass' => '',
+        'data_root' => $get('data_root'),
+        'url_root' => $get('url_root'),
+    );
+}
+
+/**
+ * Versión de Dolibarr en los ficheros. Soporta los dos formatos:
+ *  - moderno (>= v?): version.inc.php con DOL_MAJOR_VERSION + DOL_MINOR_VERSION
+ *  - antiguo: define('DOL_VERSION', 'x.y.z') en filefunc.inc.php
+ */
+function di_fs_version($target)
+{
+    foreach (array($target, $target . '/htdocs') as $root) {
+        $vf = $root . '/version.inc.php';
+        $c = @file_get_contents($vf);
+        if ($c
+            && preg_match('/define\(\s*[\'"]DOL_MAJOR_VERSION[\'"]\s*,\s*[\'"]([^\'"]+)[\'"]/', $c, $a)
+            && preg_match('/define\(\s*[\'"]DOL_MINOR_VERSION[\'"]\s*,\s*[\'"]([^\'"]+)[\'"]/', $c, $b)) {
+            return $a[1] . '.' . $b[1];
+        }
+        foreach (array($root . '/filefunc.inc.php', $vf) as $f) {
+            $c = @file_get_contents($f);
+            if ($c && preg_match('/define\(\s*[\'"]DOL_VERSION[\'"]\s*,\s*[\'"]([0-9]+\.[0-9][0-9A-Za-z.\-]*)[\'"]/', $c, $m)) {
+                return $m[1];
+            }
+        }
+    }
+    return null;
+}
+
+/** Versión registrada en la BD (último upgrade, o instalación si no hay upgrade). */
+function di_db_version($cfg)
+{
+    if (empty($cfg['db']) || empty($cfg['db']['name'])) {
+        return null;
+    }
+    $p = $cfg['db']['prefix'];
+    foreach (array('MAIN_VERSION_LAST_UPGRADE', 'MAIN_VERSION_LAST_INSTALL') as $k) {
+        list($ok, $err, $rows) = di_db_query($cfg, 'SELECT value FROM ' . $p . 'const WHERE name = ' . di_sql_str($k) . ' LIMIT 1');
+        if ($ok && isset($rows[0][0]) && $rows[0][0] !== '') {
+            return (string) $rows[0][0];
+        }
+    }
+    return null;
+}
+
+/** Número de versión mayor (major) de una cadena tipo "18.0.5". */
+function di_ver_major($v)
+{
+    return preg_match('/^(\d+)/', (string) $v, $m) ? (int) $m[1] : 0;
+}
+
+/** Lee DOL_VERSION de un ZIP local (htdocs/filefunc.inc.php), sin extraerlo. */
+function di_zip_version($zipPath, $prefix)
+{
+    if (!is_file($zipPath) || !class_exists('ZipArchive')) {
+        return null;
+    }
+    $zip = new ZipArchive();
+    if ($zip->open($zipPath) !== true) {
+        return null;
+    }
+    $p = rtrim((string) $prefix, '/');
+    $p = ($p === '') ? '' : $p . '/';
+    // Moderno: version.inc.php con DOL_MAJOR_VERSION + DOL_MINOR_VERSION
+    $cv = $zip->getFromName($p . 'version.inc.php');
+    // Antiguo: DOL_VERSION literal en filefunc.inc.php
+    $cf = $zip->getFromName($p . 'filefunc.inc.php');
+    $zip->close();
+    if ($cv
+        && preg_match('/define\(\s*[\'"]DOL_MAJOR_VERSION[\'"]\s*,\s*[\'"]([^\'"]+)[\'"]/', $cv, $a)
+        && preg_match('/define\(\s*[\'"]DOL_MINOR_VERSION[\'"]\s*,\s*[\'"]([^\'"]+)[\'"]/', $cv, $b)) {
+        return $a[1] . '.' . $b[1];
+    }
+    foreach (array($cf, $cv) as $c) {
+        if ($c && preg_match('/define\(\s*[\'"]DOL_VERSION[\'"]\s*,\s*[\'"]([0-9]+\.[0-9][0-9A-Za-z.\-]*)[\'"]/', $c, $m)) {
+            return $m[1];
+        }
+    }
+    return null;
 }
 
 /* ===========================================================================
@@ -1852,6 +2174,291 @@ function di_find_lock($cfg)
     return null;
 }
 
+/* ===========================================================================
+ *  ACTUALIZACIÓN (UPGRADE) — descarga una versión superior, sustituye los
+ *  ficheros preservando datos/config y ejecuta las migraciones nativas de
+ *  Dolibarr una major a la vez (upgrade.php + upgrade2.php por salto, step5 al
+ *  final). Es la misma técnica de autollamada HTTP que la instalación.
+ * ======================================================================== */
+
+/**
+ * Construye la cadena de subpasos de migración entre dos majors.
+ * Cada salto X→X+1 ejecuta upgrade.php y upgrade2.php; al final, step5 fija la
+ * versión (MAIN_VERSION_LAST_UPGRADE) y recrea install.lock.
+ */
+function di_upgrade_chain($fromMajor, $toMajor, $targetFull)
+{
+    $subs = array();
+    for ($v = $fromMajor; $v < $toMajor; $v++) {
+        $range = $v . '.0.0-' . ($v + 1) . '.0.0';
+        $subs[] = 'up:' . $range;
+        $subs[] = 'up2:' . $range;
+    }
+    $subs[] = 'step5:' . $fromMajor . '.0.0-' . $targetFull;
+    return $subs;
+}
+
+/** Rutas candidatas del fichero upgrade.unlock (desbloquea las páginas de upgrade). */
+function di_upgrade_unlock_paths($cfg)
+{
+    $paths = array();
+    $c = @file_get_contents($cfg['target'] . '/conf/conf.php');
+    if ($c && preg_match('/dolibarr_main_data_root\s*=\s*[\'"]([^\'"]+)[\'"]/', $c, $m)) {
+        $paths[] = $m[1] . '/upgrade.unlock';
+    }
+    $paths[] = preg_replace('#/[^/]+$#', '/documents', $cfg['target']) . '/upgrade.unlock';
+    $paths[] = $cfg['target'] . '/documents/upgrade.unlock';
+    $paths[] = $cfg['target'] . '/upgrade.unlock'; // DOL_DOCUMENT_ROOT
+    return array_values(array_unique($paths));
+}
+
+/** Crea upgrade.unlock en las ubicaciones probables del data root. */
+function di_write_upgrade_unlock($cfg)
+{
+    $done = false;
+    foreach (di_upgrade_unlock_paths($cfg) as $p) {
+        if (is_dir(dirname($p)) && @file_put_contents($p, "Unlock upgrade by EasyDoliInstaller\n") !== false) {
+            $done = true;
+        }
+    }
+    return $done;
+}
+
+/** Elimina los upgrade.unlock creados. */
+function di_remove_upgrade_unlock($cfg)
+{
+    foreach (di_upgrade_unlock_paths($cfg) as $p) {
+        @unlink($p);
+    }
+}
+
+/**
+ * Detecta un error FATAL de PHP en el HTML de una página de migración.
+ * OJO: los errores SQL por sentencia (DB_ERROR_*, "ya existe", FK/índice) NO son
+ * fatales — Dolibarr los registra y CONTINÚA, igual que su asistente nativo. Solo un
+ * fatal de PHP (o un fallo de transporte HTTP, tratado aparte) aborta la migración.
+ */
+function di_upgrade_fatal($html)
+{
+    if ($html && preg_match('#(Fatal error|Parse error|Uncaught)[^<\n]{0,200}#i', $html, $m)) {
+        return 'PHP: ' . trim($m[0]);
+    }
+    return '';
+}
+
+/** Cuenta los avisos SQL por sentencia (marcadores class="error") en el HTML. */
+function di_upgrade_warn_count($html)
+{
+    return $html ? (int) preg_match_all('#class="error"#i', $html, $m) : 0;
+}
+
+/** Ejecuta un subpaso de migración contra las páginas nativas de Dolibarr. */
+function di_run_upgrade_substep($cfg, $sub)
+{
+    $lang = !empty($cfg['lang']) ? $cfg['lang'] : 'auto';
+    list($kind, $range) = array_pad(explode(':', $sub, 2), 2, '');
+    list($from, $to) = array_pad(explode('-', $range, 2), 2, '');
+
+    if ($kind === 'up' || $kind === 'up2') {
+        $script = ($kind === 'up') ? 'upgrade.php' : 'upgrade2.php';
+        $url = di_install_url($cfg, $script)
+            . '?action=upgrade&versionfrom=' . rawurlencode($from)
+            . '&versionto=' . rawurlencode($to)
+            . '&selectlang=' . rawurlencode($lang);
+        $res = di_http($url, null, 900);
+        di_log($sub . ' http=' . $res['code'] . ' err=' . $res['error']);
+        if ((int) $res['code'] === 0) {
+            return array('ok' => false, 'msg' => di_t('ss_nocontact', array('{url}' => $url, '{s}' => $res['error']))
+                . di_t('ss_single', array('{url}' => $cfg['baseurl'])));
+        }
+        if ((int) $res['code'] >= 400) {
+            return array('ok' => false, 'msg' => di_t('up_httpfail', array('{s}' => $sub, '{code}' => $res['code'])) . di_blocked_hint($cfg, $res));
+        }
+        $fatal = di_upgrade_fatal($res['body']);
+        if ($fatal !== '') {
+            return array('ok' => false, 'msg' => di_t('up_migfail', array('{s}' => $from . ' -> ' . $to)) . ' ' . $fatal);
+        }
+        // Los errores SQL por sentencia se reportan como AVISOS (Dolibarr continúa).
+        $warn = di_upgrade_warn_count($res['body']);
+        $msg = di_t('up_migok', array('{s}' => $from . ' -> ' . $to));
+        if ($warn > 0) {
+            $msg .= ' ' . di_t('up_warns', array('{n}' => $warn));
+        }
+        return array('ok' => true, 'msg' => $msg);
+    }
+
+    if ($kind === 'step5') {
+        $url = di_install_url($cfg, 'step5.php')
+            . '?action=upgrade&versionfrom=' . rawurlencode($from)
+            . '&versionto=' . rawurlencode($to)
+            . '&selectlang=' . rawurlencode($lang) . '&installlock=0444';
+        $res = di_http($url, null, 600);
+        di_log('step5(upgrade) http=' . $res['code'] . ' err=' . $res['error']);
+        $dbver = di_db_version($cfg);
+        $lock = di_find_lock($cfg);
+        di_remove_upgrade_unlock($cfg);
+        // Verificación autoritativa: la versión registrada en BD alcanzó el destino.
+        if ($dbver !== null && di_ver_major($dbver) >= di_ver_major($to)) {
+            return array('ok' => true, 'msg' => di_t('up_done', array('{s}' => $dbver)) . ($lock ? '' : di_t('ss_s5warn')));
+        }
+        // Sin verificación por BD pero sin error HTTP ni fatal PHP: lo damos por bueno con aviso.
+        if ((int) $res['code'] > 0 && (int) $res['code'] < 400 && di_upgrade_fatal($res['body']) === '') {
+            return array('ok' => true, 'msg' => di_t('up_doneish') . ($lock ? '' : di_t('ss_s5warn')));
+        }
+        return array('ok' => false, 'msg' => di_t('up_finfail') . di_blocked_hint($cfg, $res));
+    }
+
+    return array('ok' => false, 'msg' => 'Subpaso desconocido: ' . $sub);
+}
+
+/**
+ * Finaliza la extracción en modo ACTUALIZAR: sustituye el core por la versión
+ * nueva pero PRESERVA conf/ (conf.php), custom/ (módulos del usuario) y
+ * documents/ (datos). install/ SÍ se reemplaza (trae las nuevas migraciones).
+ */
+function di_finalize_upgrade($cfg)
+{
+    $tmp = di_extract_tmpdir($cfg);
+    $prefix = isset($cfg['prefix']) ? $cfg['prefix'] : '';
+    $src = ($prefix === '' || $prefix === null) ? $tmp : $tmp . '/' . rtrim($prefix, '/');
+    if (!is_dir($src)) {
+        return array(false, di_t('e_notfound', array('{s}' => $src)));
+    }
+    $target = $cfg['target'];
+
+    // Se conservan los datos/config del usuario; conf/ y custom/ además se fusionan
+    // (se añaden ficheros nuevos del paquete sin pisar los existentes).
+    $preserve = array('conf' => 'merge', 'custom' => 'merge', 'documents' => 'keep');
+    $preserve[basename(DI_TMPDIR)] = 'keep';
+    $preserve['__doli_extract__'] = 'keep';
+    $preserve[basename(__FILE__)] = 'keep';
+
+    $items = scandir($src);
+    if ($items === false) {
+        return array(false, di_t('e_cantread'));
+    }
+    foreach ($items as $it) {
+        if ($it === '.' || $it === '..') {
+            continue;
+        }
+        if ($src === $tmp && $it === basename($tmp)) {
+            continue;
+        }
+        $from = $src . '/' . $it;
+        $to = $target . '/' . $it;
+
+        if (isset($preserve[$it])) {
+            if ($preserve[$it] === 'merge' && is_dir($from)) {
+                di_merge_keep($from, $to);  // añade lo nuevo sin sobrescribir
+            }
+            @di_rrmdir($from);  // descartar la copia del paquete de lo preservado
+            continue;
+        }
+
+        // Reemplazo limpio del core: fuera lo viejo, dentro lo nuevo (así desaparecen
+        // los ficheros que la nueva versión ya no incluye).
+        if (file_exists($to)) {
+            @di_rrmdir($to);
+        }
+        if (!@rename($from, $to) && !di_copy_recursive($from, $to)) {
+            return array(false, di_t('e_cantmove', array('{s}' => $it)));
+        }
+    }
+    di_rrmdir($tmp);
+    return array(true, '');
+}
+
+/** Copia/mueve recursivo que NUNCA sobrescribe ficheros existentes (conf/, custom/). */
+function di_merge_keep($from, $to)
+{
+    if (!is_dir($to)) {
+        @mkdir($to, 0755, true);
+    }
+    foreach (scandir($from) as $it) {
+        if ($it === '.' || $it === '..') {
+            continue;
+        }
+        $f = $from . '/' . $it;
+        $t = $to . '/' . $it;
+        if (is_dir($f)) {
+            di_merge_keep($f, $t);
+        } elseif (!file_exists($t)) {
+            if (!@rename($f, $t)) {
+                @copy($f, $t);
+            }
+        }
+    }
+}
+
+/**
+ * Vuelca un backup lógico de la base de datos como descarga .sql (best-effort).
+ * MySQL/MariaDB: estructura + datos (streaming). PostgreSQL: aviso (usar pg_dump).
+ */
+function di_stream_backup($cfg)
+{
+    $db = isset($cfg['db']) ? $cfg['db'] : array();
+    $type = isset($db['type']) ? $db['type'] : 'mysqli';
+    $dbname = isset($db['name']) ? $db['name'] : 'dolibarr';
+    $safe = preg_replace('/[^A-Za-z0-9_.\-]/', '_', $dbname);
+    header('Content-Type: application/sql; charset=utf-8');
+    header('Content-Disposition: attachment; filename="dolibarr-backup-' . $safe . '.sql"');
+    while (ob_get_level() > 0) {
+        @ob_end_flush();
+    }
+
+    if ($type !== 'mysqli') {
+        echo "-- EasyDoliInstaller backup\n";
+        echo "-- PostgreSQL: el volcado automatico no esta disponible aqui. Use pg_dump:\n";
+        echo "--   pg_dump -h " . (isset($db['host']) ? $db['host'] : 'localhost') . " -U " . (isset($db['user']) ? $db['user'] : 'user') . " " . $dbname . " > backup.sql\n";
+        return;
+    }
+    if (!function_exists('mysqli_connect')) {
+        echo "-- mysqli no disponible: no se puede volcar automaticamente.\n";
+        return;
+    }
+    mysqli_report(MYSQLI_REPORT_OFF);
+    $m = @mysqli_connect($db['host'], $db['user'], $db['pass'], $dbname, (int) ($db['port'] ?: 3306));
+    if (!$m) {
+        echo "-- conexion fallida: " . mysqli_connect_error() . "\n";
+        return;
+    }
+    @mysqli_set_charset($m, 'utf8');
+    echo "-- EasyDoliInstaller MySQL dump of `" . $dbname . "`\n";
+    echo "SET FOREIGN_KEY_CHECKS=0;\nSET NAMES utf8;\n\n";
+    $tables = array();
+    if ($r = mysqli_query($m, 'SHOW TABLES')) {
+        while ($row = mysqli_fetch_row($r)) {
+            $tables[] = $row[0];
+        }
+    }
+    foreach ($tables as $t) {
+        $tq = '`' . str_replace('`', '``', $t) . '`';
+        echo "DROP TABLE IF EXISTS $tq;\n";
+        if ($r = mysqli_query($m, "SHOW CREATE TABLE $tq")) {
+            $row = mysqli_fetch_row($r);
+            if (isset($row[1])) {
+                echo $row[1] . ";\n\n";
+            }
+        }
+        $res = mysqli_query($m, "SELECT * FROM $tq", MYSQLI_USE_RESULT);
+        if ($res) {
+            $nf = mysqli_field_count($m);
+            while ($row = mysqli_fetch_row($res)) {
+                $vals = array();
+                for ($i = 0; $i < $nf; $i++) {
+                    $vals[] = is_null($row[$i]) ? 'NULL' : "'" . mysqli_real_escape_string($m, (string) $row[$i]) . "'";
+                }
+                echo "INSERT INTO $tq VALUES (" . implode(',', $vals) . ");\n";
+            }
+            mysqli_free_result($res);
+            echo "\n";
+            @flush();
+        }
+    }
+    echo "SET FOREIGN_KEY_CHECKS=1;\n";
+    mysqli_close($m);
+}
+
 /** Extrae un mensaje de error legible del HTML devuelto por un paso. */
 function di_extract_error($html)
 {
@@ -1884,15 +2491,39 @@ di_ui_lang(); // fija el idioma y la cookie ANTES de cualquier salida
 
 if (isset($_GET['ajax'])) {
     di_security_headers();
-    header('Content-Type: application/json; charset=utf-8');
     $ajax = $_GET['ajax'];
     $cfg = di_load_config();
 
+    // Backup de BD: descarga .sql (no es JSON). Exige el token de la instalación.
+    if ($ajax === 'backup') {
+        if (!di_token_ok($cfg)) {
+            http_response_code(403);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'Forbidden';
+            exit;
+        }
+        di_stream_backup($cfg);
+        exit;
+    }
+
+    header('Content-Type: application/json; charset=utf-8');
+
     // Anti-CSRF / anti-secuestro: las acciones mutantes exigen el token de la instalación
     // (cookie puesta en el arranque). 'versiones' no toca estado y queda exenta.
-    if (in_array($ajax, array('extraer', 'instalar', 'descargar', 'limpiar'), true) && !di_token_ok($cfg)) {
+    if (in_array($ajax, array('extraer', 'instalar', 'descargar', 'limpiar', 'migrar'), true) && !di_token_ok($cfg)) {
         http_response_code(403);
         echo json_encode(array('error' => di_t('e_forbidden')));
+        exit;
+    }
+
+    // No machacar una instalación existente con extraer/descargar salvo que sea un
+    // flujo de ACTUALIZACIÓN o una reinstalación explícitamente confirmada.
+    if (in_array($ajax, array('extraer', 'descargar'), true) && $cfg
+        && ($cfg['mode'] ?? 'full') !== 'update'
+        && empty($cfg['confirm_reinstall'])
+        && di_already_installed($cfg)) {
+        http_response_code(409);
+        echo json_encode(array('error' => di_t('e_exists')));
         exit;
     }
 
@@ -1952,16 +2583,43 @@ if (isset($_GET['ajax'])) {
             exit;
         }
         if ($r['done']) {
-            list($fok, $ferr) = di_finalize_extraction($cfg);
-            if (!$fok) {
-                echo json_encode(array('error' => $ferr));
-                exit;
+            if (($cfg['mode'] ?? 'full') === 'update') {
+                // ACTUALIZAR: sustituir core preservando conf/custom/documents y
+                // dejar las páginas de upgrade desbloqueadas (upgrade.unlock).
+                list($fok, $ferr) = di_finalize_upgrade($cfg);
+                if (!$fok) {
+                    echo json_encode(array('error' => $ferr));
+                    exit;
+                }
+                @unlink($cfg['target'] . '/install/install.forced.php'); // por si quedó de un install previo
+                di_write_upgrade_unlock($cfg);
+            } else {
+                list($fok, $ferr) = di_finalize_extraction($cfg);
+                if (!$fok) {
+                    echo json_encode(array('error' => $ferr));
+                    exit;
+                }
+                list($wok, $werr) = di_write_install_files($cfg);
+                if (!$wok) {
+                    echo json_encode(array('error' => $werr));
+                    exit;
+                }
             }
-            list($wok, $werr) = di_write_install_files($cfg);
-            if (!$wok) {
-                echo json_encode(array('error' => $werr));
-                exit;
-            }
+        }
+        echo json_encode($r);
+        exit;
+    }
+
+    if ($ajax === 'migrar') {
+        if (!$cfg) {
+            echo json_encode(array('ok' => false, 'msg' => di_t('e_noconfig')));
+            exit;
+        }
+        $sub = isset($_GET['sub']) ? $_GET['sub'] : '';
+        $r = di_run_upgrade_substep($cfg, $sub);
+        if (!empty($r['ok'])) {
+            $cfg['uprogress'] = $sub; // reanudación tras F5
+            di_save_config($cfg);
         }
         echo json_encode($r);
         exit;
@@ -1998,19 +2656,34 @@ if (isset($_GET['ajax'])) {
         $target = $cfg && !empty($cfg['target']) ? $cfg['target'] : DI_DIR;
         $base = $cfg && !empty($cfg['baseurl']) ? rtrim($cfg['baseurl'], '/') : rtrim(di_self_base_url(), '/');
         $mode = $cfg['mode'] ?? 'full';
+        $upmode = $cfg['upmode'] ?? 'auto';
 
         // Defensa en profundidad: solo borrar dentro de DI_DIR (nunca rutas externas).
         $rt = realpath($target);
         $bdir = realpath(DI_DIR);
         $inside = ($rt !== false && $bdir !== false && strncmp($rt . DIRECTORY_SEPARATOR, $bdir . DIRECTORY_SEPARATOR, strlen($bdir) + 1) === 0);
 
-        if ($mode === 'simple') {
+        if ($mode === 'update' && $upmode === 'manual') {
+            // Hand-off al asistente nativo: conservamos install/ y los ficheros nuevos.
+            // Quitamos install.lock para que install/index.php detecte y ofrezca el upgrade.
+            if ($cfg) {
+                $lock = di_find_lock($cfg);
+                if ($lock) {
+                    @unlink($lock);
+                }
+                di_remove_upgrade_unlock($cfg); // index.php no usa el unlock; lo retiramos
+            }
+            $appurl = $base . '/install/index.php';
+        } elseif ($mode === 'simple') {
             // Conservamos install/ y conf.php: el usuario terminará con el asistente nativo.
             $appurl = $base . '/install/index.php';
         } else {
-            // Modo automático: install/ ya no hace falta y contiene secretos (forced).
+            // Modo automático / actualización del tirón: install/ ya no hace falta.
             if ($inside) {
                 @di_rrmdir($target . '/install');
+            }
+            if ($mode === 'update' && $cfg) {
+                di_remove_upgrade_unlock($cfg);  // por si step5 no llegó a borrarlo
             }
             $appurl = $base . '/';
         }
@@ -2084,6 +2757,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '')
             'subpath' => $subpath,
             'target' => $target,
             'baseurl' => $baseurl,
+            // Reinstalación explícita sobre un Dolibarr existente: que las acciones
+            // mutantes no la bloqueen (se machacará la instalación previa a sabiendas).
+            'confirm_reinstall' => ((($_POST['confirm'] ?? $_GET['confirm'] ?? '') === 'reinstall')) ? true : null,
         ));
         // Arranque de la instalación: emitimos la cookie con el token recién generado.
         $saved = di_load_config();
@@ -2096,6 +2772,77 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '')
             $next = ($modo === 'simple') ? 'extraer' : 'requisitos';
         }
         header('Location: ' . DI_SELF . '?paso=' . $next);
+        exit;
+    }
+}
+
+// ---- PASO ACTUALIZAR: elige el paquete nuevo y arranca el flujo de upgrade ----
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '') === 'actualizar') {
+    $installedDb = di_read_installed_conf(DI_DIR);
+    $installedVer = $installedDb ? (di_db_version(array('db' => $installedDb)) ?: di_fs_version(DI_DIR)) : null;
+    $upmode = (($_POST['upmode'] ?? 'auto') === 'manual') ? 'manual' : 'auto';
+    $allZips = di_find_zips();
+    $pkgsource = (($_POST['pkgsource'] ?? '') === 'download') ? 'download' : 'local';
+    $zip = null;
+    $prefix = null;
+    $downloadVer = null;
+    if ($pkgsource === 'download') {
+        $downloadVer = di_sanitize_version($_POST['download_version_manual'] ?? '');
+        if (!$downloadVer) {
+            $downloadVer = di_sanitize_version($_POST['download_version'] ?? '');
+        }
+    } else {
+        $zip = di_resolve_zip($_POST['zipfile'] ?? '');
+        if (!$zip && count($allZips) === 1) {
+            $zip = $allZips[0];
+        }
+        $prefix = $zip ? di_detect_prefix($zip) : null;
+    }
+
+    $errs = array();
+    if (!$installedDb) {
+        $errs[] = di_t('up_noconf');
+    }
+    if ($pkgsource === 'download') {
+        if (!$downloadVer) {
+            $errs[] = di_t('v_ver');
+        } elseif ($installedVer && version_compare($downloadVer, $installedVer, '<')) {
+            $errs[] = di_t('up_nodown', array('{new}' => $downloadVer, '{cur}' => $installedVer)); // sin downgrade
+        }
+    } elseif (!$zip) {
+        $errs[] = empty($allZips) ? di_t('v_nolocal') : di_t('v_choosezip', array('{n}' => count($allZips)));
+    } elseif (!$prefix) {
+        $errs[] = di_t('v_badzip', array('{s}' => basename($zip)));
+    } else {
+        $zipVer = di_zip_version($zip, $prefix);
+        if ($zipVer && $installedVer && version_compare($zipVer, $installedVer, '<')) {
+            $errs[] = di_t('up_nodown', array('{new}' => $zipVer, '{cur}' => $installedVer)); // sin downgrade
+        }
+    }
+
+    if ($errs) {
+        $formError = $errs;  // se re-renderiza la página 'actualizar'
+    } else {
+        $db = $installedDb;
+        unset($db['data_root'], $db['url_root']);
+        di_save_config(array(
+            'mode' => 'update',
+            'upmode' => $upmode,
+            'upmin' => $installedVer,
+            'zip' => $zip,
+            'prefix' => $prefix,
+            'download_version' => $downloadVer,
+            'subpath' => '',
+            'target' => DI_DIR,
+            'baseurl' => di_self_base_url(),
+            'db' => $db,
+            'lang' => 'auto',
+        ));
+        $saved = di_load_config();
+        if ($saved) {
+            di_set_token_cookie($saved['tok'] ?? '');
+        }
+        header('Location: ' . DI_SELF . '?paso=' . ($pkgsource === 'download' ? 'descargar' : 'extraer'));
         exit;
     }
 }
@@ -2257,10 +3004,37 @@ function di_steps_for_mode($mode)
     if ($mode === 'simple') {
         return array('bienvenida' => 'st_inicio', 'paquete' => 'st_paquete', 'extraer' => 'st_extraer', 'redir' => 'st_lanzar');
     }
+    if ($mode === 'update') {
+        return array('bienvenida' => 'st_inicio', 'actualizar' => 'st_update', 'extraer' => 'st_extraer', 'migrar' => 'st_migrate', 'finalizar' => 'st_listo');
+    }
+    if ($mode === 'update_manual') {
+        return array('bienvenida' => 'st_inicio', 'actualizar' => 'st_update', 'extraer' => 'st_extraer', 'redir' => 'st_lanzar');
+    }
     return array(
         'bienvenida' => 'st_inicio', 'paquete' => 'st_paquete', 'requisitos' => 'st_requisitos', 'config' => 'st_config',
         'extraer' => 'st_extraer', 'instalar' => 'st_instalar', 'finalizar' => 'st_listo',
     );
+}
+
+/**
+ * Pantalla mostrada cuando se detecta un Dolibarr YA instalado: ofrece abrir la
+ * aplicación, actualizar (upgrade) o reinstalar desde cero (con confirmación).
+ */
+function di_already_installed_screen($cfg)
+{
+    $base = ($cfg && !empty($cfg['baseurl'])) ? rtrim($cfg['baseurl'], '/') : rtrim(di_self_base_url(), '/');
+    $ver = di_fs_version(DI_DIR);
+    di_header(di_t('gi_title'), 'bienvenida');
+    echo '<div class="win"><div class="t">' . di_h(di_t('gi_title')) . '</div><div class="b">';
+    echo '<div class="msg warn">' . di_h(di_t('gi_msg')) . ($ver ? ' &mdash; ' . di_h(di_t('gi_ver', array('{s}' => $ver))) : '') . '</div>';
+    echo '<a class="choice" href="' . di_h($base) . '/"><div class="h">' . di_h(di_t('gi_open_h')) . '</div><div class="d">' . di_h(di_t('gi_open_d')) . '</div></a>';
+    echo '<a class="choice" href="?paso=actualizar"><div class="h">' . di_h(di_t('gi_upd_h')) . '</div><div class="d">' . di_h(di_t('gi_upd_d')) . '</div></a>';
+    $conf = json_encode(di_t('gi_re_confirm'));
+    echo '<a class="choice" href="?paso=paquete&modo=full&confirm=reinstall" onclick="return confirm(' . di_h($conf) . ')"><div class="h">' . di_h(di_t('gi_re_h')) . '</div><div class="d">' . di_h(di_t('gi_re_d')) . '</div></a>';
+    echo '<p class="dim" style="margin-top:14px">' . di_h(di_t('gi_re')) . '</p>';
+    echo '</div></div>';
+    di_footer();
+    exit;
 }
 
 function di_header($title, $current = null)
@@ -2435,7 +3209,7 @@ function di_header($title, $current = null)
 function di_footer()
 {
     ?>
-<div class="foot">// EasyDoliInstaller · Easysoft Tech S.L. · GPL-3.0 · <?php echo di_h(di_t('foot')); ?></div>
+<div class="foot">// EasyDoliInstaller v<?php echo DI_VERSION; ?> · Easysoft Tech S.L. · MIT · <?php echo di_h(di_t('foot')); ?></div>
 </div></body></html>
 <?php
 }
@@ -2444,7 +3218,7 @@ function di_footer()
  * Selector de origen del paquete (compartido por los dos formularios):
  * usar un ZIP local o descargar una versión de Dolibarr. Emite su propio <div class="win">.
  */
-function di_package_picker($prev, $zips)
+function di_package_picker($prev, $zips, $minVer = '')
 {
     // Si venimos de un envío con error, repoblamos con lo enviado ($_POST), no con la config.
     $prevZip = isset($_POST['zipfile']) ? basename((string) $_POST['zipfile']) : basename((string) (($prev['zip'] ?? '')));
@@ -2487,18 +3261,27 @@ function di_package_picker($prev, $zips)
         <label class="f"><?php echo di_h(di_t('pk_verlabel')); ?></label>
         <select name="download_version" id="dlver">
             <?php foreach (di_fallback_versions() as $v) {
+                if ($minVer !== '' && version_compare($v, $minVer, '<')) {
+                    continue; // sin downgrade: ocultar versiones inferiores a la instalada
+                }
                 echo '<option value="' . di_h($v) . '"' . ($prevVer === $v ? ' selected' : '') . '>' . di_h($v) . '</option>';
             } ?>
         </select>
         <label class="f"><?php echo di_h(di_t('pk_vermanual')); ?></label>
         <input type="text" name="download_version_manual" value="<?php echo di_h($prevVer); ?>" placeholder="<?php echo di_h(di_t('pk_optional')); ?>">
-        <div class="hint"><?php echo di_h(di_t('pk_dlhint')); ?></div>
+        <div class="hint"><?php echo di_h(di_t('pk_dlhint')); ?><?php echo $minVer !== '' ? ' ' . di_h(di_t('pk_nodown', array('{s}' => $minVer))) : ''; ?></div>
     </div>
 </div></div>
 <script>
   (function(){
     var rl=document.getElementById('src_local'),rd=document.getElementById('src_dl'),
         bl=document.getElementById('blk_local'),bd=document.getElementById('blk_dl');
+    var MINVER=<?php echo json_encode($minVer); ?>;
+    function vc(a,b){ // compara versiones tipo "18.0.5"
+      var pa=(''+a).split(/[^0-9]+/),pb=(''+b).split(/[^0-9]+/);
+      for(var i=0;i<Math.max(pa.length,pb.length);i++){var x=parseInt(pa[i]||0,10),y=parseInt(pb[i]||0,10);if(x>y)return 1;if(x<y)return -1;}
+      return 0;
+    }
     function tog(){var dl=rd.checked;bd.style.display=dl?'block':'none';bl.style.display=dl?'none':'block';}
     rl.addEventListener('change',tog);rd.addEventListener('change',tog);tog();
     // Refresca la lista de versiones en vivo desde GitHub (no bloquea la página).
@@ -2506,7 +3289,7 @@ function di_package_picker($prev, $zips)
       .then(function(r){return r.json();})
       .then(function(d){ if(!d||!d.versions||!d.versions.length)return;
         var s=document.getElementById('dlver'),cur=s.value;s.innerHTML='';
-        d.versions.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;if(v===cur)o.selected=true;s.appendChild(o);});
+        d.versions.forEach(function(v){ if(MINVER && vc(v,MINVER)<0) return; var o=document.createElement('option');o.value=v;o.textContent=v;if(v===cur)o.selected=true;s.appendChild(o);});
       }).catch(function(){});
   })();
 </script>
@@ -2516,10 +3299,22 @@ function di_package_picker($prev, $zips)
 /* ----- Guarda de "ya instalado" ----- */
 $cfgExisting = di_load_config();
 
-// Autolimpieza agresiva: si la instalación está REALMENTE completa (existe
-// install.lock) y el instalador quedó abandonado, retira secretos y se autodestruye
-// al cargar cualquier paso (salvo la propia pantalla final).
+// ¿Estamos en un flujo intencional sobre una instalación existente?
+$ediMode = $cfgExisting['mode'] ?? '';
+$ediInUpdate = ($ediMode === 'update');                                   // actualización en curso
+$ediReinstall = !empty($cfgExisting['confirm_reinstall'])                 // reinstalación confirmada
+    || (($_GET['confirm'] ?? '') === 'reinstall')
+    || (($_POST['confirm'] ?? '') === 'reinstall');
+$ediIntentional = $ediInUpdate || $ediReinstall;
+
+// Pasos que pertenecen a un flujo ya iniciado: no deben mostrar la pantalla de elección.
+$ediFlowSteps = array('finalizar', 'redir', 'instalar', 'extraer', 'descargar', 'migrar', 'actualizar');
+
+// Autolimpieza: solo si una instalación NUESTRA (full/simple) terminó y el instalador
+// quedó abandonado, se autodestruye. NO se aplica a flujos de actualización/reinstalación
+// (ahí el instalador debe seguir operando sobre un Dolibarr ya instalado).
 if ($cfgExisting && di_already_installed($cfgExisting) && di_find_lock($cfgExisting)
+    && in_array($ediMode, array('full', 'simple'), true) && !$ediIntentional
     && !in_array($paso, array('finalizar', 'redir'), true)) {
     @di_rrmdir($cfgExisting['target'] . '/install');
     if (!empty($cfgExisting['zip']) && is_file($cfgExisting['zip'])) {
@@ -2529,17 +3324,10 @@ if ($cfgExisting && di_already_installed($cfgExisting) && di_find_lock($cfgExist
     @unlink(__FILE__);
 }
 
-// La guarda NO bloquea 'instalar'/'extraer' (los pasos son idempotentes y deben
-// poder reanudarse tras un F5); solo evita relanzar el asistente sobre lo ya hecho.
-if (di_already_installed($cfgExisting) && !in_array($paso, array('finalizar', 'redir', 'instalar', 'extraer', 'descargar', 'paquete'), true)) {
-    di_header(di_t('gi_title'), $paso);
-    echo '<div class="win"><div class="t">' . di_h(di_t('gi_title')) . '</div><div class="b">';
-    echo '<div class="msg warn">' . di_h(di_t('gi_msg')) . '</div>';
-    echo '<p class="dim">' . di_h(di_t('gi_re')) . '</p>';
-    echo '<div class="row"><span></span><a class="btn" href="' . di_h(di_self_base_url()) . '/">' . di_h(di_t('b_open')) . ' &gt;</a></div>';
-    echo '</div></div>';
-    di_footer();
-    exit;
+// Pantalla de elección: si hay un Dolibarr instalado y NO estamos ya dentro de un flujo
+// intencional, ofrecemos Abrir / Actualizar / Reinstalar (en vez de machacar a ciegas).
+if (di_already_installed($cfgExisting) && !$ediIntentional && !in_array($paso, $ediFlowSteps, true)) {
+    di_already_installed_screen($cfgExisting);
 }
 
 /* ===========================================================================
@@ -2632,9 +3420,16 @@ if ($paso === 'paquete') {
         echo '</div>';
     } ?>
 </div></div>
+<?php $isReinstall = ((($_POST['confirm'] ?? $_GET['confirm'] ?? '') === 'reinstall')); ?>
+<?php if ($isReinstall) {
+        echo '<div class="msg warn">' . di_h(di_t('gi_re_warn')) . '</div>';
+    } ?>
 <form method="post" action="<?php echo DI_SELF; ?>?paso=paquete&modo=<?php echo $modo; ?>">
     <input type="hidden" name="accion" value="paquete">
     <input type="hidden" name="modo" value="<?php echo $modo; ?>">
+    <?php if ($isReinstall) {
+        echo '<input type="hidden" name="confirm" value="reinstall">';
+    } ?>
     <?php di_package_picker($prev, $zips); ?>
     <div class="win"><div class="t"><?php echo di_h(di_t('dest_title')); ?></div><div class="b">
     <label class="f"><?php echo di_h(di_t('dest_sub')); ?></label>
@@ -2643,6 +3438,68 @@ if ($paso === 'paquete') {
     <div class="row">
         <a class="btn dim" href="?paso=bienvenida"><?php echo di_h(di_t('b_back')); ?></a>
         <button class="btn amber" type="submit"><?php echo di_h($modo === 'simple' ? di_t('b_extract') : di_t('b_continue')); ?></button>
+    </div>
+</form>
+<?php
+    di_footer();
+    exit;
+}
+
+if ($paso === 'actualizar') {
+    $GLOBALS['di_force_mode'] = 'update';
+    $installedDb = di_read_installed_conf(DI_DIR);
+    if (!$installedDb) {
+        // No hay un Dolibarr instalado aquí: no hay nada que actualizar.
+        header('Location: ' . DI_SELF . '?paso=bienvenida');
+        exit;
+    }
+    di_header(di_t('st_update'), 'actualizar');
+    $fsVer = di_fs_version(DI_DIR);
+    $dbVer = di_db_version(array('db' => $installedDb));
+    $zips = di_find_zips();
+    $prev = di_load_config();
+    $hasTok = ($prev && !empty($prev['tok']));
+    ?>
+<div class="win"><div class="t"><?php echo di_h(di_t('up_detected')); ?></div><div class="b">
+    <table class="kv">
+        <tr><td class="s"><?php echo di_h(di_t('up_curver')); ?></td><td><span class="amber"><?php echo di_h($dbVer ?: ($fsVer ?: di_t('cf_undef'))); ?></span><?php echo $fsVer && $dbVer && $fsVer !== $dbVer ? ' <span class="dim">(' . di_h(di_t('up_files')) . ': ' . di_h($fsVer) . ')</span>' : ''; ?></td></tr>
+        <tr><td class="s"><?php echo di_h(di_t('up_db')); ?></td><td class="dim"><?php echo di_h($installedDb['name'] . ' @ ' . $installedDb['host'] . ' (' . ($installedDb['type'] === 'pgsql' ? 'PostgreSQL' : 'MySQL/MariaDB') . ')'); ?></td></tr>
+    </table>
+    <div class="dim" style="margin-top:8px">// <?php echo di_h(di_t('up_intro')); ?></div>
+</div></div>
+
+<div class="win"><div class="t"><?php echo di_h(di_t('up_backup')); ?></div><div class="b">
+    <div class="msg warn"><?php echo di_h(di_t('up_warn')); ?></div>
+    <?php if ($installedDb['type'] === 'pgsql') { ?>
+        <div class="hint"><?php echo di_h(di_t('up_backup_pg')); ?></div>
+    <?php } elseif ($hasTok) { ?>
+        <a class="btn dim" href="?ajax=backup" target="_blank" rel="noopener"><?php echo di_h(di_t('up_backup_btn')); ?></a>
+        <div class="hint"><?php echo di_h(di_t('up_backup_hint')); ?></div>
+    <?php } else { ?>
+        <div class="hint"><?php echo di_h(di_t('up_backup_later')); ?></div>
+    <?php } ?>
+</div></div>
+
+<?php if (!empty($GLOBALS['formError'])) {
+        echo '<div class="msg err">';
+        foreach ($GLOBALS['formError'] as $e) {
+            echo '· ' . di_h($e) . '<br>';
+        }
+        echo '</div>';
+    } ?>
+<form method="post" action="<?php echo DI_SELF; ?>?paso=actualizar">
+    <input type="hidden" name="accion" value="actualizar">
+    <?php $upmodeSel = (($_POST['upmode'] ?? ($prev['upmode'] ?? 'auto')) === 'manual') ? 'manual' : 'auto'; ?>
+    <div class="win"><div class="t"><?php echo di_h(di_t('up_modet')); ?></div><div class="b">
+        <label class="chk pkgopt" for="um_auto"><input type="radio" name="upmode" id="um_auto" value="auto" <?php echo $upmodeSel === 'auto' ? 'checked' : ''; ?>> <?php echo di_h(di_t('up_mode_auto_h')); ?>
+            <div class="hint"><?php echo di_h(di_t('up_mode_auto_d')); ?></div></label>
+        <label class="chk pkgopt" for="um_manual"><input type="radio" name="upmode" id="um_manual" value="manual" <?php echo $upmodeSel === 'manual' ? 'checked' : ''; ?>> <?php echo di_h(di_t('up_mode_manual_h')); ?>
+            <div class="hint"><?php echo di_h(di_t('up_mode_manual_d')); ?></div></label>
+    </div></div>
+    <?php di_package_picker($prev, $zips, (string) ($dbVer ?: $fsVer ?: '')); ?>
+    <div class="row">
+        <a class="btn dim" href="?paso=bienvenida"><?php echo di_h(di_t('b_back')); ?></a>
+        <button class="btn amber" type="submit"><?php echo di_h(di_t('up_start')); ?></button>
     </div>
 </form>
 <?php
@@ -2777,9 +3634,11 @@ if ($paso === 'descargar') {
         header('Location: ' . DI_SELF . '?paso=bienvenida');
         exit;
     }
-    di_header('Descarga', 'paquete');
+    $dlMode = $cfg['mode'] ?? 'full';
+    $GLOBALS['di_force_mode'] = $dlMode;
+    di_header('Descarga', $dlMode === 'update' ? 'actualizar' : 'paquete');
     $ver = $cfg['download_version'];
-    $nextStep = (($cfg['mode'] ?? 'full') === 'simple') ? 'extraer' : 'requisitos';
+    $nextStep = ($dlMode === 'full') ? 'requisitos' : 'extraer';
     ?>
 <div class="win"><div class="t"><?php echo di_h(di_t('dl_title', array('{ver}' => $ver))); ?></div><div class="b">
 <div class="pbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="pbar"><i id="bar"></i><span id="pct">0%</span></div>
@@ -2831,8 +3690,19 @@ if ($paso === 'extraer') {
         header('Location: ' . DI_SELF . '?paso=bienvenida');
         exit;
     }
-    di_header(di_t('st_extraer'), 'extraer');
     $mode = $cfg['mode'] ?? 'full';
+    $upManual = ($mode === 'update' && ($cfg['upmode'] ?? 'auto') === 'manual');
+    if ($upManual) {
+        $GLOBALS['di_force_mode'] = 'update_manual';
+    }
+    di_header(di_t('st_extraer'), 'extraer');
+    if ($mode === 'simple') {
+        $nextAfter = 'redir';
+    } elseif ($mode === 'update') {
+        $nextAfter = $upManual ? 'redir' : 'migrar';
+    } else {
+        $nextAfter = 'instalar';
+    }
     $zipname = basename((string) ($cfg['zip'] ?? 'paquete.zip'));
     ?>
 <div class="win"><div class="t"><?php echo di_h(di_t('ex_title', array('{s}' => $zipname))); ?></div><div class="b">
@@ -2841,10 +3711,10 @@ if ($paso === 'extraer') {
 <noscript><div class="msg err"><?php echo di_h(di_t('ex_noscript')); ?></div></noscript>
 <div class="msg err" id="err" style="display:none" role="alert"></div>
 <div class="row"><span class="dim"><?php echo di_h(di_t('ex_dest', array('{s}' => $cfg['target']))); ?></span>
-<a class="btn" id="next" style="display:none" href="<?php echo $mode === 'simple' ? '?paso=redir' : '?paso=instalar'; ?>"><?php echo di_h(di_t('b_continue')); ?></a></div>
+<a class="btn" id="next" style="display:none" href="?paso=<?php echo $nextAfter; ?>"><?php echo di_h(di_t('b_continue')); ?></a></div>
 </div></div>
 <script>
-  var MODE=<?php echo json_encode($mode); ?>, ZIP=<?php echo json_encode($zipname); ?>;
+  var MODE=<?php echo json_encode($mode); ?>, ZIP=<?php echo json_encode($zipname); ?>, NEXT=<?php echo json_encode($nextAfter); ?>;
   var T=<?php echo json_encode(array('open' => di_t('ex_opening'), 'blk' => di_t('ex_block'), 'files' => di_t('ex_files'), 'proc' => di_t('ex_processed'), 'comp' => di_t('ex_complete'), 'err' => di_t('err'), 'retry' => di_t('ex_retryblock'), 'net' => di_t('net'), 'rb' => di_t('retrying_block'), 'nf' => di_t('net_fail'))); ?>;
   var log=document.getElementById('log'),bar=document.getElementById('bar'),pct=document.getElementById('pct'),
       pbar=document.getElementById('pbar'),errb=document.getElementById('err'),next=document.getElementById('next'),nchunk=0,cur=null;
@@ -2868,7 +3738,7 @@ if ($paso === 'extraer') {
           put(ts()+'  '+T.proc.replace('{n}',d.total));
           put(ts()+'  '+T.comp);
           next.style.display='inline-block';
-          setTimeout(function(){location.href = MODE==='simple' ? '?paso=redir' : '?paso=instalar';},700);
+          setTimeout(function(){location.href = '?paso='+NEXT;},700);
         } else { step(d.next,0); }
       })
       .catch(function(e){
@@ -2936,12 +3806,109 @@ if ($paso === 'instalar') {
     exit;
 }
 
+if ($paso === 'migrar') {
+    $cfg = di_load_config();
+    if (!$cfg || ($cfg['mode'] ?? '') !== 'update') {
+        header('Location: ' . DI_SELF . '?paso=bienvenida');
+        exit;
+    }
+    // Calcula la cadena de migración una sola vez (a partir de la versión en BD y la
+    // versión de los ficheros ya sustituidos), y la persiste para reanudar tras F5.
+    if (empty($cfg['upchain'])) {
+        $fromVer = di_db_version($cfg);
+        $toVer = di_fs_version($cfg['target']);
+        if (!$toVer) {
+            $toVer = $cfg['download_version'] ?? '';
+        }
+        if (!$fromVer) {
+            $fromVer = $toVer;
+        }
+        $fromMajor = di_ver_major($fromVer);
+        $toMajor = di_ver_major($toVer);
+        if ($toMajor < $fromMajor) {
+            $toMajor = $fromMajor;
+        }
+        $cfg['from_version'] = $fromVer;
+        $cfg['to_version'] = $toVer;
+        $cfg['upchain'] = di_upgrade_chain($fromMajor, $toMajor, $toVer ?: ($fromMajor . '.0.0'));
+        di_save_config($cfg);
+    }
+    // Etiquetas legibles para cada subpaso.
+    $steps = array();
+    foreach ($cfg['upchain'] as $sub) {
+        list($kind, $range) = array_pad(explode(':', $sub, 2), 2, '');
+        list($a, $b) = array_pad(explode('-', $range, 2), 2, '');
+        $am = di_ver_major($a);
+        $bm = di_ver_major($b);
+        if ($kind === 'up') {
+            $label = di_t('mg_db', array('{from}' => $am, '{to}' => $bm));
+        } elseif ($kind === 'up2') {
+            $label = di_t('mg_data', array('{from}' => $am, '{to}' => $bm));
+        } else {
+            $label = di_t('mg_final', array('{s}' => $cfg['to_version'] ?? $b));
+        }
+        $steps[] = array($sub, $label);
+    }
+    di_header(di_t('st_migrate'), 'migrar');
+    ?>
+<div class="win"><div class="t"><?php echo di_h(di_t('mg_title', array('{from}' => $cfg['from_version'] ?? '?', '{to}' => $cfg['to_version'] ?? '?'))); ?></div><div class="b">
+<pre class="log" id="log" aria-live="polite"></pre>
+<noscript><div class="msg err"><?php echo di_h(di_t('in_noscript', array('{url}' => $cfg['baseurl']))); ?></div></noscript>
+<div class="msg err" id="err" style="display:none" role="alert"></div>
+<div class="row"><span class="dim"><?php echo di_h(di_t('mg_note')); ?></span>
+<a class="btn" id="next" style="display:none" href="?paso=finalizar"><?php echo di_h(di_t('b_finish')); ?></a></div>
+</div></div>
+<script>
+  var T=<?php echo json_encode(array('starting' => di_t('mg_starting'), 'resuming' => di_t('in_resuming'), 'finished' => di_t('mg_finished'), 'working' => di_t('in_working'), 'retry' => di_t('in_retrystep'), 'openinstall' => di_t('mg_openinstall'), 'err' => di_t('err'), 'net' => di_t('net'))); ?>;
+  var steps=<?php echo json_encode($steps); ?>;
+  var DONE=<?php echo json_encode($cfg['uprogress'] ?? ''); ?>;
+  var log=document.getElementById('log'),errb=document.getElementById('err'),next=document.getElementById('next'),cur=null,timer=null,t0=0;
+  function pad(n,w){n=''+n;while(n.length<w)n='0'+n;return n;}
+  function ts(){var d=new Date();return pad(d.getHours(),2)+':'+pad(d.getMinutes(),2)+':'+pad(d.getSeconds(),2);}
+  function fmt(s){var m=Math.floor(s/60),x=s%60;return (m?m+'m ':'')+x+'s';}
+  function put(s){ if(cur){cur.remove();cur=null;} log.insertAdjacentText('beforeend',s+'\n'); cur=document.createElement('span'); cur.className='cursor'; log.appendChild(cur); log.scrollTop=log.scrollHeight; }
+  function replaceLast(s){ var t=log.textContent; var i=t.lastIndexOf('\n', t.length-2); log.textContent=t.substring(0,i+1); put(s); }
+  function stopT(){ if(timer){clearInterval(timer);timer=null;} }
+  function fail(i,m){ stopT(); errb.style.display='block';
+    errb.innerHTML=T.err+' '+m+'<br><button class="btn" onclick="errb.style.display=\'none\';run('+i+')">'+T.retry+'</button>'
+      +' <a class="btn dim" href="<?php echo di_h($cfg['baseurl']); ?>/install/index.php" target="_blank">'+T.openinstall+'</a>'; }
+  function run(i){
+    if(i>=steps.length){put(ts()+'  '+T.finished);next.style.display='inline-block';setTimeout(function(){location.href='?paso=finalizar';},1100);return;}
+    var s=steps[i];
+    put(ts()+'  > '+s[1]+' ...');
+    t0=Date.now();
+    timer=setInterval(function(){ replaceLast(ts()+'  > '+s[1]+' ... '+T.working.replace('{s}',fmt(Math.round((Date.now()-t0)/1000)))); },1000);
+    fetch('<?php echo DI_SELF; ?>?ajax=migrar&sub='+encodeURIComponent(s[0]),{cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(d){ stopT();
+        if(d.ok){put('          [ OK ] '+d.msg);run(i+1);}
+        else{put('          [FAIL] '+d.msg);fail(i,d.msg);}
+      })
+      .catch(function(e){ stopT(); put('  !! '+T.net+' '+e);fail(i,T.net+' '+e);});
+  }
+  var startIdx=0;
+  for(var k=0;k<steps.length;k++){ if(steps[k][0]===DONE){ startIdx=k+1; break; } }
+  put(ts()+'  '+T.starting+(startIdx>0?' '+T.resuming.replace('{s}',DONE):'')+' ...');
+  run(startIdx);
+</script>
+<?php
+    di_footer();
+    exit;
+}
+
 if ($paso === 'redir') {
     $cfg = di_load_config();
     $base = $cfg && !empty($cfg['baseurl']) ? rtrim($cfg['baseurl'], '/') : rtrim(di_self_base_url(), '/');
+    if (($cfg['mode'] ?? '') === 'update') {
+        $GLOBALS['di_force_mode'] = 'update_manual';
+    }
     di_header(di_t('st_lanzar'), 'redir');
+    $isUpdManual = (($cfg['mode'] ?? '') === 'update');
     ?>
-<div class="win"><div class="t"><?php echo di_h(di_t('rd_title')); ?></div><div class="b">
+<div class="win"><div class="t"><?php echo di_h($isUpdManual ? di_t('rd_title_up') : di_t('rd_title')); ?></div><div class="b">
+<?php if ($isUpdManual) {
+        echo '<div class="msg warn">' . di_h(di_t('rd_up_warn')) . '</div>';
+    } ?>
 <pre class="log" id="log"></pre>
 <div class="row"><span></span><a class="btn amber" id="go" href="<?php echo di_h($base); ?>/install/index.php"><?php echo di_h(di_t('b_go')); ?></a></div>
 </div></div>
@@ -2967,16 +3934,19 @@ if ($paso === 'finalizar') {
     $cfg = di_load_config();
     $base = $cfg && !empty($cfg['baseurl']) ? rtrim($cfg['baseurl'], '/') : rtrim(di_self_base_url(), '/');
     $appurl = $base . '/';
+    $upMode = (($cfg['mode'] ?? 'full') === 'update');
     di_header(di_t('st_listo'), 'finalizar');
     ?>
-<div class="win"><div class="t"><?php echo di_h(di_t('fn_title')); ?></div><div class="b">
+<div class="win"><div class="t"><?php echo di_h($upMode ? di_t('fn_title_up') : di_t('fn_title')); ?></div><div class="b">
 <pre class="banner" style="color:var(--grn)">  ___  _  __
- / _ \| |/ /     <?php echo di_h(di_t('fn_op')); ?>
+ / _ \| |/ /     <?php echo di_h($upMode ? di_t('fn_op_up') : di_t('fn_op')); ?>
 
 | | | | ' /
 | |_| | . \      <?php echo di_h($appurl); ?>
 
- \___/|_|\_\     <?php echo di_h(di_t('fn_user')); ?> <?php echo di_h($cfg['admin']['login'] ?? 'admin'); ?></pre>
+ \___/|_|\_\     <?php echo $upMode
+        ? di_h(di_t('fn_upgraded', array('{s}' => ($cfg['to_version'] ?? di_fs_version(DI_DIR)) ?: '?')))
+        : di_h(di_t('fn_user')) . ' ' . di_h($cfg['admin']['login'] ?? 'admin'); ?></pre>
 <div class="msg ok" style="margin-top:14px"><?php echo di_h(di_t('fn_sec')); ?></div>
 <pre class="log" id="log" style="height:120px"></pre>
 <div class="row">
