@@ -1,81 +1,109 @@
-# EasyDoliInstaller
+<h1 align="center">EasyDoliInstaller 🐦</h1>
 
-**Instalador automático "todo en uno" para [Dolibarr](https://www.dolibarr.org), en un solo archivo PHP.** Al estilo de Duplicator/Migrator: subes **solo** `easydoliinstaller.php`, eliges la versión de Dolibarr (la **descarga él mismo**) o usas un ZIP que ya tengas, abres el archivo en el navegador y el asistente descomprime y realiza **todo** el proceso de instalación por ti.
+<p align="center">
+  <b>One-file automatic installer for <a href="https://www.dolibarr.org">Dolibarr ERP/CRM</a>.</b><br>
+  Upload a single PHP file, pick a version, and it unpacks and runs the <i>entire</i> installation for you — Duplicator-style.
+</p>
 
-> Hecho por [Easysoft Tech S.L.](https://github.com/easySoft-Tech-SL) · Licencia GPL-3.0 (igual que Dolibarr)
-
-![estética terminal CRT](https://img.shields.io/badge/UI-terminal%20CRT-43ff7d?style=flat-square) ![PHP ≥7.1](https://img.shields.io/badge/PHP-%E2%89%A57.1-777bb3?style=flat-square) ![Dolibarr](https://img.shields.io/badge/Dolibarr-paquete%20oficial-1d3a8a?style=flat-square)
+<p align="center">
+  <a href="https://github.com/EasySoft-Tech-SL/easydoliinstaller/releases"><img src="https://img.shields.io/github/v/release/EasySoft-Tech-SL/easydoliinstaller?style=for-the-badge&color=43ff7d" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-blue?style=for-the-badge" alt="License: GPL-3.0"></a>
+  <img src="https://img.shields.io/badge/PHP-7.4%20%E2%86%92%208.3-777BB4?style=for-the-badge&logo=php&logoColor=white" alt="PHP 7.4 to 8.3">
+  <img src="https://img.shields.io/badge/DB-MySQL%20%7C%20MariaDB%20%7C%20PostgreSQL-F29111?style=for-the-badge" alt="Databases">
+  <img src="https://img.shields.io/badge/i18n-EN%20ES%20DE%20FR%20IT-43ff7d?style=for-the-badge" alt="Languages">
+  <a href="https://github.com/easySoft-Tech-SL"><img src="https://img.shields.io/badge/Built%20by-Easysoft%20Tech-8a2be2?style=for-the-badge" alt="Built by Easysoft Tech"></a>
+</p>
 
 ---
 
-## ✨ Qué hace
+**EasyDoliInstaller** turns the multi-step Dolibarr setup into a single, self-contained `easydoliinstaller.php`. Drop it on your hosting, open it in a browser, and a guided wizard checks requirements, fetches the package (or uses one you uploaded), unpacks `htdocs`, creates the database, tables, reference data and administrator, locks the install and then **deletes itself**. No SSH, no manual config files, no clicking through the native wizard.
 
-Dos modos en el mismo archivo:
+It ships with a retro **terminal/CRT interface** and a **real live log** of every download/extraction block and install step — not a fake progress bar.
 
-| Modo | Qué hace |
-|------|----------|
-| **Automático** | Descomprime + crea la base de datos + tablas + datos de referencia + cuenta de administrador + bloquea la instalación. **Cero clics** en el asistente nativo. Al terminar se autodestruye. |
-| **Ultrasencillo** | Solo descomprime `htdocs` y te redirige al asistente nativo `install/` de Dolibarr para que lo configures tú. |
+```text
+ ┌─[ EasyDoliInstaller ]──────────────────────────────────┐
+ │  EN  ES  DE  FR  IT                  2026-06-17 18:42   │
+ │  [x] start  [x] package  [x] requirements  [>] install │
+ │  ┌──────────────────────────────────────────────────┐ │
+ │  │ 18:42:01  > step1: create config and database  OK │ │
+ │  │ 18:42:02  > step2: create tables ... working (21s)│ │
+ │  │ 18:42:23  [ OK ] 272 tables created               │ │
+ │  │ 18:42:24  > step5: create admin and lock       OK_│ │
+ │  └──────────────────────────────────────────────────┘ │
+ └────────────────────────────────────────────────────────┘
+```
 
-- 🌐 **Multidioma (i18n) autocontenido**: interfaz en **English · Español · Deutsch · Français · Italiano**, con selector en la barra superior (se recuerda por cookie) y autodetección del navegador. Todo el texto, validaciones y log en vivo traducidos.
-- 🐘 **Compatible PHP 7.4 → 8.3** (probado).
-- 📥 **Descarga autónoma**: elige la versión y el instalador baja el paquete oficial desde SourceForge por bloques (con barra de progreso real). Lista de versiones desde GitHub. ¡Sube solo 1 archivo!
-- 🖥️ **Interfaz tipo terminal CRT** (verde fósforo) con **log en vivo real** de cada bloque de descarga/descompresión y cada paso de instalación (no una carga inventada).
-- ⚡ **Descompresión nativa** (`ZipArchive::extractTo`) por bloques: ~17.000 archivos en segundos, como 7-Zip.
-- 🔁 Reanudable: reintenta bloques/pasos y sobrevive a un F5.
-- 🧩 Detecta y deja **elegir** entre varios `dolibarr-*.zip`.
+## ✨ Features
 
-## 🚀 Uso
+<table>
+<tr><td>📦 <b>Single file</b></td><td>Everything lives in one <code>easydoliinstaller.php</code>. Upload it alone.</td></tr>
+<tr><td>📥 <b>Autonomous download</b></td><td>Pick a Dolibarr version and it downloads the official package from SourceForge in blocks (real progress bar). Version list pulled live from GitHub. Or use a ZIP you already uploaded.</td></tr>
+<tr><td>⚡ <b>Native-speed unpack</b></td><td><code>ZipArchive::extractTo</code> in C, by blocks — ~17,000 files in seconds, like 7-Zip.</td></tr>
+<tr><td>🤖 <b>Two modes</b></td><td><b>Automatic</b> (DB + tables + admin + lock, zero clicks) or <b>Extract-only</b> (unpack and hand off to Dolibarr's native wizard).</td></tr>
+<tr><td>🗄️ <b>MySQL &amp; PostgreSQL</b></td><td>Choose the engine; default port and verification adapt automatically.</td></tr>
+<tr><td>🌐 <b>5 languages</b></td><td>English, Español, Deutsch, Français, Italiano — self-contained, with a switcher and browser auto-detection.</td></tr>
+<tr><td>🖥️ <b>CRT UI + live log</b></td><td>Phosphor-green terminal aesthetic; every chunk and step is logged in real time.</td></tr>
+<tr><td>🔒 <b>Hardened</b></td><td>TLS-verified download with SHA-256 check, anti-CSRF install token, secret purging, self-destruct.</td></tr>
+<tr><td>🐘 <b>PHP 7.4 → 8.3</b></td><td>Tested across versions; no 8-only syntax.</td></tr>
+<tr><td>🔁 <b>Resilient</b></td><td>Resumes after an F5, retries failed blocks/steps, detects an already-installed instance.</td></tr>
+</table>
 
-1. Sube a la carpeta que será la **raíz web** de tu Dolibarr:
-   - `easydoliinstaller.php` (¡y nada más!)
-   - *Opcional*: un `dolibarr-*.zip` si prefieres no descargarlo (si no, el asistente lo baja solo).
-2. Abre en el navegador: `https://tu-dominio/easydoliinstaller.php`
-3. Sigue el asistente. El **primer paso es el paquete**: usa un ZIP local o descarga la versión que quieras. En modo automático, al terminar pulsa **Limpiar** y entras a tu Dolibarr ya instalado.
+## 📦 Requirements
 
-   Flujo: `Inicio → Paquete → Requisitos → Config (BD+admin) → Descompresión → Instalación → Listo` (el modo ultrasencillo es `Inicio → Paquete → Descompresión → asistente nativo`).
+- **PHP 7.4 – 8.3** (absolute minimum 7.1).
+- Extensions: `zip`, `json` (required); a DB driver — `mysqli`/`pdo_mysql` **or** `pgsql`/`pdo_pgsql`; `curl` **or** `allow_url_fopen`. Recommended: `gd`, `mbstring`, `xml`.
+- The installation directory must be **writable**.
+- A server that handles **more than one request at a time** (normal Apache/nginx). The single-threaded `php -S` dev server deadlocks on the automatic mode's self-call.
 
-## ✅ Requisitos del servidor
+## 🚀 Getting started
 
-- PHP **7.4 → 8.3** (probado; mínimo absoluto 7.1). MySQL/MariaDB o PostgreSQL. Probado con Apache.
-- Extensiones: `zip`, `json` (obligatorias); driver de BD según el motor (`mysqli`/`pdo_mysql` o `pgsql`/`pdo_pgsql`); `curl` o `allow_url_fopen`. Recomendadas: `gd`, `mbstring`, `xml`.
-- Carpeta de instalación **escribible**.
-- El servidor debe poder atender **más de una petición a la vez** (Apache/nginx normales; **no** sirve `php -S` monohilo, que se bloquearía en la autollamada del modo automático).
+1. Upload to the folder that will become your Dolibarr **web root**:
+   - `easydoliinstaller.php` *(and nothing else)*
+   - *Optional:* a `dolibarr-*.zip` if you prefer not to download it (otherwise the wizard fetches it).
+2. Open it in your browser: `https://your-domain/easydoliinstaller.php`
+3. Follow the wizard. In automatic mode, press **Clean up** at the end — the installer deletes itself and drops you into your fresh Dolibarr.
 
-## 🔧 Cómo funciona (modo automático)
+## 🎛️ Modes
 
-1. Detecta el ZIP y extrae **solo el contenido de `htdocs/`** como raíz web.
-2. Escribe `install/install.forced.php` (instalación desatendida de Dolibarr, `noedit=2`) y un `conf/conf.php` vacío y escribible.
-3. Ejecuta por HTTP los pasos nativos de Dolibarr: `step1` (conf + BD) → `step2` (tablas + datos) → `step5` (admin + `install.lock`).
-4. Verifica contra la BD (tablas núcleo, usuario admin, fichero de bloqueo).
-5. Limpia: borra `install/`, el ZIP, los temporales y **se autodestruye**.
+| Mode | What it does | Flow |
+|------|--------------|------|
+| **Automatic** | Unpack → create database + tables + reference data + administrator → lock → self-destruct. **Zero clicks** in the native wizard. | `Start → Package → Requirements → Config → Extract → Install → Done` |
+| **Extract-only** *(expert)* | Just unpack `htdocs` and redirect you to Dolibarr's native `install/` wizard to configure it yourself. | `Start → Package → Extract → native wizard` |
 
-## 🔒 Seguridad
+## ⚙️ How it works (automatic mode)
 
-EasyDoliInstaller es una herramienta de **un solo uso**:
+1. Detects (or downloads) the ZIP and extracts **only the `htdocs/` subtree** as the web root.
+2. Writes `install/install.forced.php` (Dolibarr unattended install, `noedit=2`) and an empty, writable `conf/conf.php`.
+3. Drives Dolibarr's native steps over HTTP: `step1` (config + database) → `step2` (tables + reference data) → `step5` (admin + `install.lock`).
+4. Verifies against the database (core tables, the specific admin user, the lock file).
+5. Cleans up: removes `install/`, the ZIP, the temp dir, and **deletes itself**.
 
-- El `install/install.forced.php` (con contraseñas) se escribe con permisos `0600` y se **borra en cuanto termina** `step5`; `install/` completo se elimina al limpiar.
-- La configuración temporal se guarda como `.php` con guardia (devuelve 403) dentro de `__doli_installer_tmp__/` (protegido con `.htaccess` + `web.config`) y **caduca** a las 6 h.
-- Cabeceras anti-clickjacking/`no-store`, validación anti-SSRF de la URL base, y autolimpieza agresiva si detecta una instalación ya completada.
+## 🔒 Security
 
-- **Descarga verificada**: el paquete se baja por **HTTPS con verificación de certificado** y se comprueba su **SHA‑256** (versiones conocidas) antes de extraerlo, para evitar paquetes manipulados (MITM/mirror).
-- **Token de instalación (anti-CSRF)**: al iniciar el asistente se ata la instalación al navegador que la empezó (cookie `HttpOnly`); cualquier tercero que no la inició recibe **403** en las acciones de extraer/instalar/descargar/limpiar.
-- **Ciclo de vida de secretos**: `install.forced.php` se borra tras crear el admin; las contraseñas se purgan de la config temporal al terminar; `ajax=limpiar` solo acepta POST; el temporal caduca a las 2 h y se borra físicamente.
+EasyDoliInstaller is a **single-use** tool and is hardened accordingly:
 
-> ⚠️ Es una herramienta de **un solo uso**: se autodestruye al terminar. Aun así, **no la dejes en un servidor público**; si interrumpes el proceso, borra manualmente `easydoliinstaller.php`, el `.zip` y la carpeta `__doli_installer_tmp__`.
+- **Verified download** — package fetched over **HTTPS with certificate validation**, HTTPS-only redirects, and **SHA-256 integrity check** for known versions before extraction (defeats MITM / poisoned mirrors).
+- **Anti-CSRF install token** — the installation is bound to the browser that started it (`HttpOnly` cookie); any third party gets **403** on extract/install/download/cleanup.
+- **Secret lifecycle** — `install.forced.php` (with the DBMS root password) is deleted right after the admin is created; DB/admin passwords are purged from the temp config on completion; the temp dir expires (2 h) and is physically removed.
+- **Robust self-destruct** — the file is overwritten with an inert `HTTP 410` stub before `unlink`, in case deletion fails (e.g. SFTP owner ≠ web user).
+- Host-header allow-listing, security headers (anti-clickjacking / `no-store`), `0640` config permissions.
 
-## 🐛 Si algo falla
+> **Note:** It still has no login (by design — it's a one-shot installer). It self-destructs when finished; if you interrupt the process, delete `easydoliinstaller.php`, the `.zip` and `__doli_installer_tmp__/` manually. Never leave it on a public server longer than needed.
 
-- Si un paso se detiene, el asistente lo indica y ofrece **reintentar** o terminar manualmente en `https://tu-dominio/install/`.
-- Revisa `__doli_installer_tmp__/install.log` para ver los códigos HTTP de cada paso.
-- ¿Detrás de un WAF/mod_security? Añade una excepción para `/install/`.
+## 🌐 Languages
 
-## 📦 Compatibilidad
+Interface available in **English · Español · Deutsch · Français · Italiano**, with an in-page switcher (remembered via cookie) and `Accept-Language` auto-detection. UI, labels, validations, error messages and the live log are all translated.
 
-- Paquete oficial de Dolibarr (`dolibarr-x.y.z/htdocs/...`), un ZIP cuyo raíz sea `htdocs/`, o un ZIP que ya **sea** el contenido de `htdocs`.
-- Base de datos: **MySQL / MariaDB** y **PostgreSQL** (elegible en el formulario). Probado e2e con ambos.
-  - MySQL necesita `mysqli` o `pdo_mysql`; PostgreSQL necesita `pgsql` o `pdo_pgsql`.
+## 🗄️ Compatibility
 
-## Licencia
+- **PHP:** 7.4 → 8.3 (lint-verified on 7.4, 8.1, 8.3).
+- **Databases:** MySQL / MariaDB and PostgreSQL.
+- **Packages:** the official Dolibarr ZIP (`dolibarr-x.y.z/htdocs/...`), a ZIP whose root is `htdocs/`, or a ZIP that already *is* the `htdocs` content.
 
-GPL-3.0-or-later. Consulta [LICENSE](LICENSE).
+## 🤝 Contributing
+
+Issues and pull requests are welcome. The whole tool is one auditable PHP file — keep it self-contained, PHP 7.4-compatible, and free of external dependencies. To extend end-to-end integrity verification, add `version => sha256` entries to `di_known_hashes()`.
+
+## 📄 License
+
+[GPL-3.0-or-later](LICENSE), same as Dolibarr. © [Easysoft Tech S.L.](https://github.com/easySoft-Tech-SL)
