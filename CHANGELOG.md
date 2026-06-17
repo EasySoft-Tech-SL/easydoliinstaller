@@ -2,6 +2,12 @@
 
 Todos los cambios notables de EasyDoliInstaller.
 
+## [1.2.0] - 2026-06-17
+
+### Añadido
+- **Soporte para PostgreSQL** además de MySQL/MariaDB: selector de motor en el formulario, `$force_install_type` correcto, conexión y verificación vía `pgsql`/`pdo_pgsql`, puerto por defecto 5432 automático. Probado e2e (272 tablas, admin y `install.lock`) contra PostgreSQL 16 y MySQL 8.
+- Requisitos detecta drivers de ambos motores; verificación de tablas portable (`SHOW TABLES` / `pg_tables`); escape SQL portable.
+
 ## [1.1.0] - 2026-06-17
 
 ### Añadido

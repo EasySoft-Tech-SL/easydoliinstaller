@@ -39,7 +39,7 @@
 @ignore_user_abort(true);
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE & ~E_WARNING);
 
-define('DI_VERSION', '1.1.0');
+define('DI_VERSION', '1.2.0');
 define('DI_DIR', __DIR__);
 define('DI_SELF', basename(__FILE__));
 define('DI_TMPDIR', DI_DIR . '/__doli_installer_tmp__');
@@ -451,15 +451,64 @@ function di_http_once($url, $post, $timeout, $hostheader)
  *  BASE DE DATOS (verificación independiente del resultado)
  * ======================================================================== */
 
-/** Devuelve [ok, error, rows] tras ejecutar un SELECT contra la BD configurada. */
+/** Devuelve [ok, error, rows] tras ejecutar un SELECT. Soporta MySQL y PostgreSQL. */
 function di_db_query($cfg, $sql)
 {
     $db = $cfg['db'];
+    $type = isset($db['type']) ? $db['type'] : 'mysqli';
     $host = $db['host'];
     $port = (int) $db['port'];
+
+    // ---------- PostgreSQL ----------
+    if ($type === 'pgsql') {
+        if (!$port) {
+            $port = 5432;
+        }
+        if (function_exists('pg_connect')) {
+            $q = function ($v) {
+                return "'" . str_replace(array('\\', "'"), array('\\\\', "\\'"), (string) $v) . "'";
+            };
+            $cs = 'host=' . $q($host) . ' port=' . (int) $port . ' dbname=' . $q($db['name'])
+                . ' user=' . $q($db['user']) . ' password=' . $q($db['pass']) . ' connect_timeout=10';
+            $c = @pg_connect($cs);
+            if (!$c) {
+                return array(false, 'No se pudo conectar a PostgreSQL (' . $host . ':' . $port . ')', array());
+            }
+            $r = @pg_query($c, $sql);
+            if ($r === false) {
+                $e = pg_last_error($c);
+                pg_close($c);
+                return array(false, $e, array());
+            }
+            $rows = array();
+            if (is_resource($r) || $r instanceof \PgSql\Result) {
+                while ($row = pg_fetch_row($r)) {
+                    $rows[] = $row;
+                }
+            }
+            pg_close($c);
+            return array(true, '', $rows);
+        }
+        if (class_exists('PDO')) {
+            try {
+                $dsn = 'pgsql:host=' . $host . ';port=' . $port . ';dbname=' . $db['name'];
+                $pdo = new PDO($dsn, $db['user'], $db['pass'], array(PDO::ATTR_TIMEOUT => 10));
+                $stmt = $pdo->query($sql);
+                return array(true, '', $stmt->fetchAll(PDO::FETCH_NUM));
+            } catch (Exception $e) {
+                return array(false, $e->getMessage(), array());
+            }
+        }
+        return array(false, 'Sin driver PostgreSQL (pgsql/PDO) para verificar', array());
+    }
+
+    // ---------- MySQL / MariaDB ----------
+    if (!$port) {
+        $port = 3306;
+    }
     if (function_exists('mysqli_connect')) {
         mysqli_report(MYSQLI_REPORT_OFF);
-        $m = @mysqli_connect($host, $db['user'], $db['pass'], $db['name'], $port ?: 3306);
+        $m = @mysqli_connect($host, $db['user'], $db['pass'], $db['name'], $port);
         if (!$m) {
             return array(false, mysqli_connect_error(), array());
         }
@@ -480,7 +529,7 @@ function di_db_query($cfg, $sql)
     }
     if (class_exists('PDO')) {
         try {
-            $dsn = 'mysql:host=' . $host . ';port=' . ($port ?: 3306) . ';dbname=' . $db['name'];
+            $dsn = 'mysql:host=' . $host . ';port=' . $port . ';dbname=' . $db['name'];
             $pdo = new PDO($dsn, $db['user'], $db['pass'], array(PDO::ATTR_TIMEOUT => 10));
             $stmt = $pdo->query($sql);
             return array(true, '', $stmt->fetchAll(PDO::FETCH_NUM));
@@ -491,16 +540,34 @@ function di_db_query($cfg, $sql)
     return array(false, 'Sin driver MySQL (mysqli/PDO) para verificar', array());
 }
 
+/** Lista de tablas del esquema (array de nombres) o null si no se puede verificar. */
+function di_list_tables($cfg)
+{
+    $type = isset($cfg['db']['type']) ? $cfg['db']['type'] : 'mysqli';
+    $sql = ($type === 'pgsql')
+        ? "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
+        : 'SHOW TABLES';
+    list($ok, $err, $rows) = di_db_query($cfg, $sql);
+    if (!$ok) {
+        return null;
+    }
+    $names = array();
+    foreach ($rows as $r) {
+        $names[] = $r[0];
+    }
+    return $names;
+}
+
 function di_count_tables($cfg)
 {
-    list($ok, $err, $rows) = di_db_query($cfg, 'SHOW TABLES');
-    if (!$ok) {
+    $names = di_list_tables($cfg);
+    if ($names === null) {
         return -1;
     }
     $prefix = $cfg['db']['prefix'];
     $c = 0;
-    foreach ($rows as $r) {
-        if (strpos($r[0], $prefix) === 0) {
+    foreach ($names as $n) {
+        if (strpos($n, $prefix) === 0) {
             $c++;
         }
     }
@@ -559,7 +626,7 @@ function di_write_install_files($cfg)
         . "\$force_install_message = '';\n"
         . "\$force_install_main_data_root = " . ($dataRoot === null ? 'null' : $ve($dataRoot)) . ";\n"
         . "\$force_install_mainforcehttps = " . $ve(!empty($cfg['forcehttps'])) . ";\n"
-        . "\$force_install_type = 'mysqli';\n"
+        . "\$force_install_type = " . $ve(isset($db['type']) ? $db['type'] : 'mysqli') . ";\n"
         . "\$force_install_dbserver = " . $ve($db['host']) . ";\n"
         . "\$force_install_port = " . $ve((int) $db['port']) . ";\n"
         . "\$force_install_database = " . $ve($db['name']) . ";\n"
@@ -786,10 +853,10 @@ function di_install_url($cfg, $script)
     return rtrim($cfg['baseurl'], '/') . '/install/' . $script;
 }
 
-/** Escapa una cadena para incrustarla como literal SQL entre comillas simples. */
+/** Escapa una cadena como literal SQL (portable MySQL/PostgreSQL: duplica la comilla). */
 function di_sql_str($s)
 {
-    return "'" . str_replace(array('\\', "'"), array('\\\\', "\\'"), (string) $s) . "'";
+    return "'" . str_replace("'", "''", (string) $s) . "'";
 }
 
 /** Mensaje de error legible; detecta bloqueos WAF / errores 4xx-5xx del servidor. */
@@ -807,17 +874,14 @@ function di_blocked_hint($cfg, $res)
 /** ¿Existen las tablas núcleo de Dolibarr? true/false, o null si no se puede verificar. */
 function di_core_tables_ok($cfg)
 {
-    list($ok, $err, $rows) = di_db_query($cfg, 'SHOW TABLES');
-    if (!$ok) {
+    $names = di_list_tables($cfg);
+    if ($names === null) {
         return null;
     }
-    $set = array();
-    foreach ($rows as $r) {
-        $set[$r[0]] = true;
-    }
+    $set = array_flip($names);
     $p = $cfg['db']['prefix'];
     foreach (array('const', 'user', 'menu', 'rights_def', 'societe') as $t) {
-        if (empty($set[$p . $t])) {
+        if (!isset($set[$p . $t])) {
             return false;
         }
     }
@@ -1089,6 +1153,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '')
         $baseurl = di_validate_baseurl($_POST['baseurl'], $baseurl);
     }
 
+    $dbType = in_array($_POST['db_type'] ?? 'mysqli', array('mysqli', 'pgsql'), true) ? $_POST['db_type'] : 'mysqli';
+    $dbPort = (int) ($_POST['db_port'] ?? 0);
+    if ($dbPort <= 0) {
+        $dbPort = ($dbType === 'pgsql') ? 5432 : 3306;
+    }
+
     $cfg = array(
         'mode' => 'full',
         'zip' => $zip,
@@ -1099,8 +1169,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['accion'] ?? '')
         'lang' => preg_replace('#[^a-zA-Z_]#', '', $_POST['lang'] ?? 'es_ES'),
         'forcehttps' => !empty($_POST['forcehttps']),
         'db' => array(
+            'type' => $dbType,
             'host' => trim($_POST['db_host'] ?? 'localhost'),
-            'port' => (int) ($_POST['db_port'] ?? 3306),
+            'port' => $dbPort,
             'name' => trim($_POST['db_name'] ?? ''),
             'prefix' => trim($_POST['db_prefix'] ?? 'llx_'),
             'user' => trim($_POST['db_user'] ?? ''),
@@ -1233,9 +1304,22 @@ function di_requisitos()
             'crit' => $crit,
         );
     }
-    // mysqli o pdo_mysql
-    $dbdrv = extension_loaded('mysqli') || extension_loaded('pdo_mysql');
-    $r[] = array('ok' => $dbdrv, 'label' => 'Driver MySQL (mysqli o pdo_mysql)', 'val' => $dbdrv ? 'sí' : 'no', 'crit' => true);
+    // Driver de BD: MySQL/MariaDB (mysqli/pdo_mysql) o PostgreSQL (pgsql/pdo_pgsql).
+    $mysqlOk = extension_loaded('mysqli') || extension_loaded('pdo_mysql');
+    $pgOk = extension_loaded('pgsql') || extension_loaded('pdo_pgsql');
+    $avail = array();
+    if ($mysqlOk) {
+        $avail[] = 'MySQL/MariaDB';
+    }
+    if ($pgOk) {
+        $avail[] = 'PostgreSQL';
+    }
+    $r[] = array(
+        'ok' => ($mysqlOk || $pgOk),
+        'label' => 'Driver de base de datos (MySQL y/o PostgreSQL)',
+        'val' => $avail ? implode(' + ', $avail) : 'ninguno',
+        'crit' => true,
+    );
     // curl o allow_url_fopen
     $httpok = function_exists('curl_init') || filter_var(ini_get('allow_url_fopen'), FILTER_VALIDATE_BOOLEAN);
     $r[] = array('ok' => $httpok, 'label' => 'cURL o allow_url_fopen (para ejecutar el instalador)', 'val' => function_exists('curl_init') ? 'curl' : (ini_get('allow_url_fopen') ? 'fopen' : 'no'), 'crit' => true);
@@ -1626,19 +1710,26 @@ if ($paso === 'config') {
 </div></div>
 
 <div class="win"><div class="t">BASE DE DATOS</div><div class="b">
+<?php $dbtype = $g('db.type', 'mysqli'); ?>
 <div class="grid">
+    <div><label class="f">tipo de base de datos</label>
+        <select name="db_type" id="db_type">
+            <option value="mysqli"<?php echo $dbtype === 'mysqli' ? ' selected' : ''; ?>>MySQL / MariaDB</option>
+            <option value="pgsql"<?php echo $dbtype === 'pgsql' ? ' selected' : ''; ?>>PostgreSQL</option>
+        </select>
+    </div>
     <div><label class="f">servidor (host)</label><input type="text" name="db_host" value="<?php echo di_h($g('db.host', 'localhost')); ?>"></div>
-    <div><label class="f">puerto</label><input type="number" name="db_port" value="<?php echo di_h($g('db.port', '3306')); ?>"></div>
+    <div><label class="f">puerto</label><input type="number" name="db_port" id="db_port" value="<?php echo di_h($g('db.port', '3306')); ?>"></div>
     <div><label class="f">nombre de la base de datos</label><input type="text" name="db_name" value="<?php echo di_h($g('db.name', 'dolibarr')); ?>"></div>
     <div><label class="f">prefijo de tablas</label><input type="text" name="db_prefix" value="<?php echo di_h($g('db.prefix', 'llx_')); ?>"></div>
     <div><label class="f">usuario</label><input type="text" name="db_user" value="<?php echo di_h($g('db.user', '')); ?>"></div>
     <div><label class="f">contraseña</label><input type="password" name="db_pass" value="<?php echo di_h($g('db.pass', '')); ?>"></div>
 </div>
-<label class="chk"><input type="checkbox" name="db_create" id="db_create" value="1" <?php echo $g('db.create') ? 'checked' : ''; ?>> crear la base de datos automáticamente (requiere root)</label>
+<label class="chk"><input type="checkbox" name="db_create" id="db_create" value="1" <?php echo $g('db.create') ? 'checked' : ''; ?>> crear la base de datos automáticamente (requiere usuario administrador del SGBD)</label>
 <div id="rootbox" style="display:none">
     <div class="grid">
-        <div><label class="f">usuario root/admin de MySQL</label><input type="text" name="db_rootuser" value="<?php echo di_h($g('db.rootuser', 'root')); ?>"></div>
-        <div><label class="f">contraseña root/admin</label><input type="password" name="db_rootpass" value="<?php echo di_h($g('db.rootpass', '')); ?>"></div>
+        <div><label class="f">usuario admin del SGBD (root / postgres)</label><input type="text" name="db_rootuser" value="<?php echo di_h($g('db.rootuser', 'root')); ?>"></div>
+        <div><label class="f">contraseña del admin del SGBD</label><input type="password" name="db_rootpass" value="<?php echo di_h($g('db.rootpass', '')); ?>"></div>
     </div>
 </div>
 </div></div>
@@ -1678,6 +1769,12 @@ if ($paso === 'config') {
   var cb=document.getElementById('db_create'),rb=document.getElementById('rootbox');
   function tog(){rb.style.display=cb.checked?'block':'none';}
   cb.addEventListener('change',tog);tog();
+  // Ajusta el puerto por defecto al cambiar de motor (solo si está en el otro valor por defecto).
+  var dt=document.getElementById('db_type'),dp=document.getElementById('db_port');
+  dt.addEventListener('change',function(){
+    if(dt.value==='pgsql' && (dp.value===''||dp.value==='3306')) dp.value='5432';
+    if(dt.value==='mysqli' && (dp.value===''||dp.value==='5432')) dp.value='3306';
+  });
 </script>
 <?php
     di_footer();

@@ -33,7 +33,7 @@ Dos modos en el mismo archivo:
 ## ✅ Requisitos del servidor
 
 - PHP ≥ 7.1 (recomendado 8.x). Probado en PHP 7.4 + MySQL 8 + Apache.
-- Extensiones: `zip`, `json` (obligatorias); `mysqli`/`pdo_mysql`; `curl` o `allow_url_fopen`. Recomendadas: `gd`, `mbstring`, `xml`.
+- Extensiones: `zip`, `json` (obligatorias); driver de BD según el motor (`mysqli`/`pdo_mysql` o `pgsql`/`pdo_pgsql`); `curl` o `allow_url_fopen`. Recomendadas: `gd`, `mbstring`, `xml`.
 - Carpeta de instalación **escribible**.
 - El servidor debe poder atender **más de una petición a la vez** (Apache/nginx normales; **no** sirve `php -S` monohilo, que se bloquearía en la autollamada del modo automático).
 
@@ -64,7 +64,8 @@ EasyDoliInstaller es una herramienta de **un solo uso**:
 ## 📦 Compatibilidad
 
 - Paquete oficial de Dolibarr (`dolibarr-x.y.z/htdocs/...`), un ZIP cuyo raíz sea `htdocs/`, o un ZIP que ya **sea** el contenido de `htdocs`.
-- Base de datos: **MySQL / MariaDB**.
+- Base de datos: **MySQL / MariaDB** y **PostgreSQL** (elegible en el formulario). Probado e2e con ambos.
+  - MySQL necesita `mysqli` o `pdo_mysql`; PostgreSQL necesita `pgsql` o `pdo_pgsql`.
 
 ## Licencia
 
