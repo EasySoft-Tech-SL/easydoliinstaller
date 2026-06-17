@@ -17,6 +17,8 @@ Dos modos en el mismo archivo:
 | **Automático** | Descomprime + crea la base de datos + tablas + datos de referencia + cuenta de administrador + bloquea la instalación. **Cero clics** en el asistente nativo. Al terminar se autodestruye. |
 | **Ultrasencillo** | Solo descomprime `htdocs` y te redirige al asistente nativo `install/` de Dolibarr para que lo configures tú. |
 
+- 🌐 **Multidioma (i18n) autocontenido**: interfaz en **English · Español · Deutsch · Français · Italiano**, con selector en la barra superior (se recuerda por cookie) y autodetección del navegador. Todo el texto, validaciones y log en vivo traducidos.
+- 🐘 **Compatible PHP 7.4 → 8.3** (probado).
 - 📥 **Descarga autónoma**: elige la versión y el instalador baja el paquete oficial desde SourceForge por bloques (con barra de progreso real). Lista de versiones desde GitHub. ¡Sube solo 1 archivo!
 - 🖥️ **Interfaz tipo terminal CRT** (verde fósforo) con **log en vivo real** de cada bloque de descarga/descompresión y cada paso de instalación (no una carga inventada).
 - ⚡ **Descompresión nativa** (`ZipArchive::extractTo`) por bloques: ~17.000 archivos en segundos, como 7-Zip.
@@ -35,7 +37,7 @@ Dos modos en el mismo archivo:
 
 ## ✅ Requisitos del servidor
 
-- PHP ≥ 7.1 (recomendado 8.x). Probado en PHP 7.4 + MySQL 8 + Apache.
+- PHP **7.4 → 8.3** (probado; mínimo absoluto 7.1). MySQL/MariaDB o PostgreSQL. Probado con Apache.
 - Extensiones: `zip`, `json` (obligatorias); driver de BD según el motor (`mysqli`/`pdo_mysql` o `pgsql`/`pdo_pgsql`); `curl` o `allow_url_fopen`. Recomendadas: `gd`, `mbstring`, `xml`.
 - Carpeta de instalación **escribible**.
 - El servidor debe poder atender **más de una petición a la vez** (Apache/nginx normales; **no** sirve `php -S` monohilo, que se bloquearía en la autollamada del modo automático).

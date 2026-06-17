@@ -2,6 +2,15 @@
 
 Todos los cambios notables de EasyDoliInstaller.
 
+## [1.5.0] - 2026-06-17
+
+### Añadido
+- **Internacionalización (i18n) completa y autocontenida** en el mismo archivo: **English, Español, Deutsch, Français, Italiano**. Diccionario embebido + `di_t()`; cubre interfaz, etiquetas, validaciones, mensajes de error y el log en vivo (JS).
+- **Selector de idioma** en la barra superior (persiste en cookie, conserva el paso actual) y **autodetección** por `Accept-Language`.
+
+### Compatibilidad
+- Verificado en **PHP 7.4, 8.1 y 8.3** (sin sintaxis exclusiva de 8.x; gestionadas las diferencias de PDO/mysqli/pgsql de 8.1+).
+
 ## [1.4.0] - 2026-06-17
 
 ### Cambiado
