@@ -57,7 +57,7 @@
 @ignore_user_abort(true);
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE & ~E_WARNING);
 
-define('DI_VERSION', '1.9.1');
+define('DI_VERSION', '1.9.2');
 define('DI_DIR', __DIR__);
 define('DI_SELF', basename(__FILE__));
 define('DI_TMPDIR', DI_DIR . '/__doli_installer_tmp__');
@@ -263,6 +263,10 @@ function di_dict()
         'ir_delextra' => 'DELETE {n} EXTRA FILES', 'ir_confirmdel' => 'Delete {n} unexpected files from the install? They are NOT in the official package (possible tampering or local patches). A backup zip is kept first. This cannot be undone.',
         'ir_deleting' => 'deleting extra files ...', 'ir_noextra' => 'no extra files to delete.', 'ir_extradel' => 'Deleted: {ok} removed, {fail} failed.',
         'ir_vermismatch' => 'The chosen package ({pkg}) does not match the installed version ({inst}); the diff will be inflated. Use the same version.',
+        'ir_sec_mod' => '~ MODIFIED ({n})', 'ir_sec_miss' => '+ MISSING ({n})', 'ir_sec_extra' => '! UNEXPECTED ({n})',
+        'ir_diffhint' => 'click a file to see which lines changed (red = official, green = your install).',
+        'df_loading' => 'loading diff...', 'df_nochange' => '(no textual differences)',
+        'df_binary' => '(binary file — no line diff)', 'df_toobig' => '(file too large for a line diff: {a}/{b} lines)', 'df_nofile' => '(file not available)',
         'pk_nodown' => '(only {s} or newer)',
         'e_exists' => 'A Dolibarr is already installed here. Use Update, or confirm a reinstall.',
         'fn_title_up' => 'UPGRADE COMPLETE', 'fn_op_up' => 'dolibarr upgraded', 'fn_upgraded' => 'version: {s}',
@@ -431,6 +435,10 @@ function di_dict()
         'ir_delextra' => 'BORRAR {n} SOBRANTES', 'ir_confirmdel' => '¿Borrar {n} ficheros inesperados de la instalación? NO están en el paquete oficial (posible manipulación o parches locales). Antes se guarda un zip de copia. Esto no se puede deshacer.',
         'ir_deleting' => 'borrando sobrantes ...', 'ir_noextra' => 'no hay sobrantes que borrar.', 'ir_extradel' => 'Borrados: {ok} eliminados, {fail} fallidos.',
         'ir_vermismatch' => 'El paquete elegido ({pkg}) no coincide con la versión instalada ({inst}); el diff saldrá inflado. Usa la misma versión.',
+        'ir_sec_mod' => '~ MODIFICADOS ({n})', 'ir_sec_miss' => '+ AUSENTES ({n})', 'ir_sec_extra' => '! SOBRANTES ({n})',
+        'ir_diffhint' => 'pincha un fichero para ver qué líneas cambiaron (rojo = oficial, verde = tu instalación).',
+        'df_loading' => 'cargando diff...', 'df_nochange' => '(sin diferencias de texto)',
+        'df_binary' => '(fichero binario — sin diff por líneas)', 'df_toobig' => '(fichero demasiado grande para diff por líneas: {a}/{b} líneas)', 'df_nofile' => '(fichero no disponible)',
         'pk_nodown' => '(solo {s} o superior)',
         'e_exists' => 'Ya hay un Dolibarr instalado aquí. Usa Actualizar, o confirma una reinstalación.',
         'fn_title_up' => 'ACTUALIZACIÓN COMPLETA', 'fn_op_up' => 'dolibarr actualizado', 'fn_upgraded' => 'versión: {s}',
@@ -599,6 +607,10 @@ function di_dict()
         'ir_delextra' => '{n} EXTRA-DATEIEN LÖSCHEN', 'ir_confirmdel' => '{n} unerwartete Dateien aus der Installation löschen? Sie sind NICHT im offiziellen Paket (mögliche Manipulation oder lokale Patches). Zuvor wird ein Backup-Zip gespeichert. Nicht rückgängig zu machen.',
         'ir_deleting' => 'lösche Extra-Dateien ...', 'ir_noextra' => 'keine Extra-Dateien zu löschen.', 'ir_extradel' => 'Gelöscht: {ok} entfernt, {fail} fehlgeschlagen.',
         'ir_vermismatch' => 'Das gewählte Paket ({pkg}) entspricht nicht der installierten Version ({inst}); der Diff wird aufgebläht. Verwenden Sie dieselbe Version.',
+        'ir_sec_mod' => '~ GEÄNDERT ({n})', 'ir_sec_miss' => '+ FEHLEND ({n})', 'ir_sec_extra' => '! UNERWARTET ({n})',
+        'ir_diffhint' => 'Klicken Sie auf eine Datei, um die geänderten Zeilen zu sehen (rot = offiziell, grün = Ihre Installation).',
+        'df_loading' => 'lade Diff...', 'df_nochange' => '(keine Textunterschiede)',
+        'df_binary' => '(Binärdatei — kein Zeilen-Diff)', 'df_toobig' => '(Datei zu groß für Zeilen-Diff: {a}/{b} Zeilen)', 'df_nofile' => '(Datei nicht verfügbar)',
         'pk_nodown' => '(nur {s} oder neuer)',
         'e_exists' => 'Hier ist bereits ein Dolibarr installiert. Nutzen Sie Aktualisieren oder bestätigen Sie eine Neuinstallation.',
         'fn_title_up' => 'UPGRADE ABGESCHLOSSEN', 'fn_op_up' => 'dolibarr aktualisiert', 'fn_upgraded' => 'Version: {s}',
@@ -767,6 +779,10 @@ function di_dict()
         'ir_delextra' => 'SUPPRIMER {n} FICHIERS EN TROP', 'ir_confirmdel' => 'Supprimer {n} fichiers inattendus de l\'installation ? Ils ne sont PAS dans le paquet officiel (manipulation possible ou correctifs locaux). Un zip de sauvegarde est conservé au préalable. Irréversible.',
         'ir_deleting' => 'suppression des fichiers en trop ...', 'ir_noextra' => 'aucun fichier en trop à supprimer.', 'ir_extradel' => 'Supprimés : {ok} retirés, {fail} échoués.',
         'ir_vermismatch' => 'Le paquet choisi ({pkg}) ne correspond pas à la version installée ({inst}) ; le diff sera gonflé. Utilisez la même version.',
+        'ir_sec_mod' => '~ MODIFIÉS ({n})', 'ir_sec_miss' => '+ MANQUANTS ({n})', 'ir_sec_extra' => '! INATTENDUS ({n})',
+        'ir_diffhint' => 'cliquez un fichier pour voir les lignes modifiées (rouge = officiel, vert = votre installation).',
+        'df_loading' => 'chargement du diff...', 'df_nochange' => '(aucune différence de texte)',
+        'df_binary' => '(fichier binaire — pas de diff par lignes)', 'df_toobig' => '(fichier trop grand pour un diff par lignes : {a}/{b} lignes)', 'df_nofile' => '(fichier non disponible)',
         'pk_nodown' => '(seulement {s} ou plus récent)',
         'e_exists' => 'Un Dolibarr est déjà installé ici. Utilisez Mettre à jour, ou confirmez une réinstallation.',
         'fn_title_up' => 'MISE À JOUR TERMINÉE', 'fn_op_up' => 'dolibarr mis à jour', 'fn_upgraded' => 'version : {s}',
@@ -935,6 +951,10 @@ function di_dict()
         'ir_delextra' => 'ELIMINA {n} FILE IN ECCESSO', 'ir_confirmdel' => 'Eliminare {n} file inattesi dall\'installazione? NON sono nel pacchetto ufficiale (possibile manomissione o patch locali). Prima viene salvato uno zip di backup. Irreversibile.',
         'ir_deleting' => 'eliminazione file in eccesso ...', 'ir_noextra' => 'nessun file in eccesso da eliminare.', 'ir_extradel' => 'Eliminati: {ok} rimossi, {fail} falliti.',
         'ir_vermismatch' => 'Il pacchetto scelto ({pkg}) non corrisponde alla versione installata ({inst}); il diff sarà gonfiato. Usa la stessa versione.',
+        'ir_sec_mod' => '~ MODIFICATI ({n})', 'ir_sec_miss' => '+ MANCANTI ({n})', 'ir_sec_extra' => '! INATTESI ({n})',
+        'ir_diffhint' => 'clicca un file per vedere le righe cambiate (rosso = ufficiale, verde = la tua installazione).',
+        'df_loading' => 'caricamento diff...', 'df_nochange' => '(nessuna differenza di testo)',
+        'df_binary' => '(file binario — niente diff per righe)', 'df_toobig' => '(file troppo grande per un diff per righe: {a}/{b} righe)', 'df_nofile' => '(file non disponibile)',
         'pk_nodown' => '(solo {s} o superiore)',
         'e_exists' => 'Qui è già installato un Dolibarr. Usa Aggiorna, oppure conferma una reinstallazione.',
         'fn_title_up' => 'AGGIORNAMENTO COMPLETATO', 'fn_op_up' => 'dolibarr aggiornato', 'fn_upgraded' => 'versione: {s}',
@@ -2855,12 +2875,15 @@ function di_repair_state_path()
 /** ¿Se excluye esta ruta del cotejo? (datos/config del usuario, no del core). */
 function di_repair_skip($rel)
 {
-    foreach (array('conf/', 'custom/', 'documents/') as $p) {
+    // Datos/config del usuario, y el directorio install/ (se ELIMINA tras instalar —
+    // recomendado por seguridad—, así que su ausencia es normal y no debe contar como
+    // "ausente"). El resto del core sí se coteja.
+    foreach (array('conf/', 'custom/', 'documents/', 'install/') as $p) {
         if (strncmp($rel, $p, strlen($p)) === 0) {
             return true;
         }
     }
-    return ($rel === 'conf/conf.php' || $rel === 'install.lock');
+    return ($rel === 'conf/conf.php' || $rel === 'install.lock' || $rel === 'install');
 }
 
 /**
@@ -3033,7 +3056,7 @@ function di_scan_extras($cfg)
     }
     $self = basename(__FILE__);
     $skipTop = array('conf', 'custom', 'documents', 'install',
-        basename(DI_TMPDIR), '__doli_extract__');
+        basename(DI_TMPDIR), '__doli_extract__', '.git', '.svn', '_repo');
     $extras = array();
     $cap = 5000; // límite de seguridad para no desbordar
     try {
@@ -3098,6 +3121,99 @@ function di_repair_delete_extras($cfg, $files)
         }
     }
     return array($ok, $fail);
+}
+
+/**
+ * Diff unificado y compacto entre el contenido OFICIAL y el INSTALADO de un fichero
+ * modificado. Devuelve ['diff'=>texto, 'added'=>n, 'removed'=>n] o ['error'=>...].
+ * Líneas '-' = oficial (lo que debería haber); '+' = instalado (tu cambio local).
+ */
+function di_text_diff($official, $installed)
+{
+    if (preg_match('/[\x00]/', substr($official, 0, 8000)) || preg_match('/[\x00]/', substr($installed, 0, 8000))) {
+        return array('error' => di_t('df_binary'));
+    }
+    $a = explode("\n", str_replace("\r\n", "\n", (string) $official));   // oficial
+    $b = explode("\n", str_replace("\r\n", "\n", (string) $installed));  // instalado
+    $na = count($a);
+    $nb = count($b);
+    if ($na > 6000 || $nb > 6000) {
+        return array('error' => di_t('df_toobig', array('{a}' => $na, '{b}' => $nb)));
+    }
+    // LCS (matriz de longitudes).
+    $lcs = array();
+    for ($i = 0; $i <= $na; $i++) {
+        $lcs[$i] = array_fill(0, $nb + 1, 0);
+    }
+    for ($i = $na - 1; $i >= 0; $i--) {
+        for ($j = $nb - 1; $j >= 0; $j--) {
+            $lcs[$i][$j] = ($a[$i] === $b[$j]) ? $lcs[$i + 1][$j + 1] + 1 : max($lcs[$i + 1][$j], $lcs[$i][$j + 1]);
+        }
+    }
+    // Backtrack → secuencia de operaciones con números de línea.
+    $ops = array();
+    $i = 0;
+    $j = 0;
+    while ($i < $na && $j < $nb) {
+        if ($a[$i] === $b[$j]) {
+            $ops[] = array(' ', $i + 1, $j + 1, $a[$i]);
+            $i++;
+            $j++;
+        } elseif ($lcs[$i + 1][$j] >= $lcs[$i][$j + 1]) {
+            $ops[] = array('-', $i + 1, 0, $a[$i]);
+            $i++;
+        } else {
+            $ops[] = array('+', 0, $j + 1, $b[$j]);
+            $j++;
+        }
+    }
+    while ($i < $na) {
+        $ops[] = array('-', $i + 1, 0, $a[$i]);
+        $i++;
+    }
+    while ($j < $nb) {
+        $ops[] = array('+', 0, $j + 1, $b[$j]);
+        $j++;
+    }
+    // Render compacto: hunks con 2 líneas de contexto; runs largos de contexto se colapsan.
+    $ctx = 2;
+    $changed = array();
+    foreach ($ops as $k => $op) {
+        if ($op[0] !== ' ') {
+            $changed[$k] = 1;
+        }
+    }
+    if (!$changed) {
+        return array('diff' => '', 'added' => 0, 'removed' => 0);
+    }
+    $keep = array();
+    foreach (array_keys($changed) as $k) {
+        for ($x = $k - $ctx; $x <= $k + $ctx; $x++) {
+            if ($x >= 0 && $x < count($ops)) {
+                $keep[$x] = 1;
+            }
+        }
+    }
+    ksort($keep);
+    $lines = array();
+    $added = 0;
+    $removed = 0;
+    $prev = -2;
+    foreach (array_keys($keep) as $k) {
+        if ($k > $prev + 1) {
+            $lines[] = '@@';
+        }
+        $op = $ops[$k];
+        if ($op[0] === '+') {
+            $added++;
+        } elseif ($op[0] === '-') {
+            $removed++;
+        }
+        $ln = $op[0] === '+' ? $op[2] : $op[1];
+        $lines[] = $op[0] . sprintf('%5d', $ln) . '  ' . $op[3];
+        $prev = $k;
+    }
+    return array('diff' => implode("\n", $lines), 'added' => $added, 'removed' => $removed);
 }
 
 /** Extrae un mensaje de error legible del HTML devuelto por un paso. */
@@ -3183,7 +3299,7 @@ if (isset($_GET['ajax'])) {
 
     // Anti-CSRF / anti-secuestro: las acciones mutantes exigen el token de la instalación
     // (cookie puesta en el arranque). 'versiones' no toca estado y queda exenta.
-    if (in_array($ajax, array('extraer', 'instalar', 'descargar', 'limpiar', 'migrar', 'comparar', 'reparar', 'extras', 'delextras'), true) && !di_token_ok($cfg)) {
+    if (in_array($ajax, array('extraer', 'instalar', 'descargar', 'limpiar', 'migrar', 'comparar', 'reparar', 'extras', 'delextras', 'diff'), true) && !di_token_ok($cfg)) {
         http_response_code(403);
         echo json_encode(array('error' => di_t('e_forbidden')));
         exit;
@@ -3308,6 +3424,36 @@ if (isset($_GET['ajax'])) {
             @unlink(di_repair_state_path()); // empezar limpio
         }
         echo json_encode(di_compare_chunk($cfg, $offset));
+        exit;
+    }
+
+    if ($ajax === 'diff') {
+        if (!$cfg) {
+            echo json_encode(array('error' => di_t('e_noconfig')));
+            exit;
+        }
+        $rel = isset($_GET['file']) ? str_replace('\\', '/', (string) $_GET['file']) : '';
+        $rel = ltrim($rel, '/');
+        // Solo ficheros marcados como modificados (evita exponer cualquier ruta arbitraria).
+        $res = di_repair_result();
+        $mod = ($res && !empty($res['modified'])) ? $res['modified'] : array();
+        if ($rel === '' || strpos($rel, '..') !== false || !in_array($rel, $mod, true)) {
+            echo json_encode(array('error' => di_t('df_nofile')));
+            exit;
+        }
+        $instPath = $cfg['target'] . '/' . $rel;
+        $installed = @file_get_contents($instPath);
+        $zip = new ZipArchive();
+        $official = false;
+        if ($zip->open($cfg['zip']) === true) {
+            $official = $zip->getFromName((isset($cfg['prefix']) ? $cfg['prefix'] : '') . $rel);
+            $zip->close();
+        }
+        if ($installed === false || $official === false) {
+            echo json_encode(array('error' => di_t('df_nofile')));
+            exit;
+        }
+        echo json_encode(di_text_diff($official, $installed) + array('file' => $rel));
         exit;
     }
 
@@ -4523,27 +4669,39 @@ if ($paso === 'informe') {
     <div class="msg ok" style="margin-top:12px"><?php echo di_h(di_t('ir_clean')); ?></div>
     <div class="row"><span></span><a class="btn" href="<?php echo di_h($base); ?>/"><?php echo di_h(di_t('b_open')); ?> &gt;</a></div>
 <?php } else {
-        $show = array_slice(array_merge(
-            array_map(function ($f) {
-                return array('~', $f);
-            }, $modified),
-            array_map(function ($f) {
-                return array('+', $f);
-            }, $missing),
-            array_map(function ($f) {
-                return array('!', $f);
-            }, $extra)
-        ), 0, 800);
-        $tot = $restore + $nExtra;
+        $cap = 2000; // tope de visualización por sección
         ?>
-    <pre class="log" style="height:280px"><?php
-        foreach ($show as $row) {
-            echo $row[0] . ' ' . di_h($row[1]) . "\n";
+    <?php if ($modified) { ?>
+    <div style="margin-top:14px;color:var(--amber);border-bottom:1px solid var(--line);padding-bottom:4px"><?php echo di_h(di_t('ir_sec_mod', array('{n}' => count($modified)))); ?></div>
+    <div class="hint" style="margin:4px 0 6px"><?php echo di_h(di_t('ir_diffhint')); ?></div>
+    <div style="max-height:240px;overflow:auto;border:1px solid var(--line);padding:6px">
+        <?php foreach (array_slice($modified, 0, $cap) as $f) { ?>
+        <div class="mrow"><button type="button" class="flink" onclick="dodiff(this)" data-f="<?php echo di_h($f); ?>" style="background:none;border:0;color:var(--amber);cursor:pointer;font:inherit;text-align:left;padding:1px 0;text-shadow:var(--glow)">~ <?php echo di_h($f); ?></button><pre class="dbox" style="display:none;margin:2px 0 8px;border-left:2px solid var(--line);padding:4px 8px;font-size:12px;white-space:pre-wrap;word-break:break-word"></pre></div>
+        <?php } ?>
+    </div>
+    <?php } ?>
+    <?php if ($missing) { ?>
+    <div style="margin-top:14px;color:var(--amber);border-bottom:1px solid var(--line);padding-bottom:4px"><?php echo di_h(di_t('ir_sec_miss', array('{n}' => count($missing)))); ?></div>
+    <pre class="log" style="height:160px;margin-top:6px"><?php
+        foreach (array_slice($missing, 0, $cap) as $f) {
+            echo '+ ' . di_h($f) . "\n";
         }
-        if ($tot > count($show)) {
-            echo '... (' . ($tot - count($show)) . ' ' . di_h(di_t('ir_more')) . ")\n";
+        if (count($missing) > $cap) {
+            echo '... (' . (count($missing) - $cap) . ' ' . di_h(di_t('ir_more')) . ")\n";
         }
     ?></pre>
+    <?php } ?>
+    <?php if ($extra) { ?>
+    <div style="margin-top:14px;color:var(--red);border-bottom:1px solid var(--line);padding-bottom:4px"><?php echo di_h(di_t('ir_sec_extra', array('{n}' => count($extra)))); ?></div>
+    <pre class="log" style="height:160px;margin-top:6px"><?php
+        foreach (array_slice($extra, 0, $cap) as $f) {
+            echo '! ' . di_h($f) . "\n";
+        }
+        if (count($extra) > $cap) {
+            echo '... (' . (count($extra) - $cap) . ' ' . di_h(di_t('ir_more')) . ")\n";
+        }
+    ?></pre>
+    <?php } ?>
     <div class="hint"><?php echo di_h(di_t('ir_legend')); ?></div>
     <div class="row">
         <a class="btn dim" href="?ajax=repairzip" target="_blank" rel="noopener"><?php echo di_h(di_t('ir_dlzip')); ?></a>
@@ -4567,9 +4725,31 @@ if ($paso === 'informe') {
         'confirmdel' => di_t('ir_confirmdel', array('{n}' => $nExtra)),
         'working' => di_t('ir_working'), 'deleting' => di_t('ir_deleting'),
         'done' => di_t('ir_done'), 'fail' => di_t('ir_fail'),
+        'dload' => di_t('df_loading'), 'dnone' => di_t('df_nochange'),
     )); ?>;
   var rlog=document.getElementById('rlog'),donerow=document.getElementById('donerow'),appurl=<?php echo json_encode($base . '/'); ?>;
   function rput(s){ rlog.style.display='block'; rlog.textContent+=s+'\n'; rlog.scrollTop=rlog.scrollHeight; }
+  function dodiff(btn){
+    var box=btn.nextElementSibling, f=btn.getAttribute('data-f');
+    if(box.getAttribute('data-loaded')){ box.style.display = box.style.display==='none'?'block':'none'; return; }
+    box.style.display='block'; box.textContent=T.dload;
+    fetch('<?php echo DI_SELF; ?>?ajax=diff&file='+encodeURIComponent(f),{cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        box.setAttribute('data-loaded','1'); box.textContent='';
+        if(d.error){ box.textContent=d.error; return; }
+        if(!d.diff){ box.textContent=T.dnone; return; }
+        d.diff.split('\n').forEach(function(l){
+          var s=document.createElement('span'); s.textContent=l+'\n';
+          if(l.charAt(0)==='+') s.style.color='var(--grn)';
+          else if(l.charAt(0)==='-') s.style.color='var(--red)';
+          else if(l.indexOf('@@')===0) s.style.color='var(--amber)';
+          else s.style.color='var(--grn-dim)';
+          box.appendChild(s);
+        });
+      })
+      .catch(function(e){ box.textContent='diff: '+e; });
+  }
   function act(url,btnId,confirmMsg,workMsg){
     if(!confirm(confirmMsg))return;
     var b=document.getElementById(btnId); if(b){b.disabled=true;b.textContent=workMsg;}

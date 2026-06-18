@@ -2,6 +2,16 @@
 
 Todos los cambios notables de EasyDoliInstaller.
 
+## [1.9.2] - 2026-06-18
+
+### Corregido — falsos "ausentes" en reparar
+- **`install/` se excluye del cotejo.** Dolibarr elimina (y recomienda borrar) el directorio `install/` tras instalar; compararlo con el paquete oficial marcaba ~1000+ ficheros como *ausentes* en una instalación perfectamente sana. Ahora `install/` se excluye igual que `conf/`, `custom/` y `documents/`, eliminando esos falsos positivos.
+- Del apartado de *sobrantes* se excluyen también directorios de control de versiones/artefactos (`.git`, `.svn`, `_repo`).
+
+### Añadido — informe de integridad detallado con diff por líneas
+- El informe se muestra **por secciones**: Modificados / Ausentes / Sobrantes, cada una con su lista.
+- Cada fichero **modificado es desplegable** y muestra un **diff línea a línea** (`?ajax=diff`): líneas en **rojo = oficial**, **verde = tu instalación**, con números de línea, contexto y agrupado por *hunks*. Guardas para binarios y ficheros muy grandes.
+
 ## [1.9.1] - 2026-06-18
 
 ### Corregido

@@ -96,7 +96,7 @@ Drop `easydoliinstaller.php` into the root of an **already installed** Dolibarr 
 Detects an installed Dolibarr and offers **Repair / verify integrity**. Pick the **official package of the same version** (download or local ZIP) and it:
 
 1. Compares the install **file-by-file** against the official package (by hash), in chunks with a live log.
-2. Shows a **visual report** of files that **differ** (`~`), are **missing** (`+`) or are **unexpected/injected** (`!` — present locally but not in the official package, e.g. a planted webshell) — `conf/`, `custom/` and `documents/` are excluded so your data and modules are never flagged.
+2. Shows a **detailed report by sections** — **modified** (`~`), **missing** (`+`) and **unexpected/injected** (`!`, present locally but not in the official package, e.g. a planted webshell). `conf/`, `custom/`, `documents/` and the post-install `install/` directory are excluded, so your data, modules and the (normally removed) installer files are never flagged. Each **modified file expands to a line-by-line diff** (red = official, green = your install).
 3. Lets you **download a ZIP** of the affected files, then **restores** changed/missing files from the official package and (optionally) **deletes the unexpected** ones — each on confirmation (a backup zip is kept first). This makes it a lightweight **integrity / anti-tamper** check.
 
 Together with install and upgrade, this gives you the full lifecycle: **install · upgrade · repair**.
