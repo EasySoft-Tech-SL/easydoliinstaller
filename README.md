@@ -99,6 +99,8 @@ Detects an installed Dolibarr and offers **Repair / verify integrity**. Pick the
 2. Shows a **detailed report by sections** — **modified** (`~`), **missing** (`+`) and **unexpected/injected** (`!`, present locally but not in the official package, e.g. a planted webshell). `conf/`, `custom/`, `documents/` and the post-install `install/` directory are excluded, so your data, modules and the (normally removed) installer files are never flagged. Each **modified file expands to a line-by-line diff** (red = official, green = your install).
 3. Lets you **download a ZIP** of the affected files, then **restores** changed/missing files from the official package and (optionally) **deletes the unexpected** ones — each on confirmation (a backup zip is kept first). This makes it a lightweight **integrity / anti-tamper** check.
 
+It also offers **Repair database** — recreate missing tables and reference data by running Dolibarr's native step (`CREATE TABLE IF NOT EXISTS`), the automated equivalent of Dolibarr's *"First install"* repair. It never creates the DB/user, never touches the admin and never rewrites `conf.php` (confirmation + optional DB backup first).
+
 Together with install and upgrade, this gives you the full lifecycle: **install · upgrade · repair**.
 
 ## 🔒 Security

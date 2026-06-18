@@ -57,7 +57,7 @@
 @ignore_user_abort(true);
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE & ~E_WARNING);
 
-define('DI_VERSION', '1.9.4');
+define('DI_VERSION', '1.10.0');
 define('DI_DIR', __DIR__);
 define('DI_SELF', basename(__FILE__));
 define('DI_TMPDIR', DI_DIR . '/__doli_installer_tmp__');
@@ -270,6 +270,14 @@ function di_dict()
         'ir_diffhint' => 'click a file to see which lines changed (red = official, green = your install).',
         'df_loading' => 'loading diff...', 'df_nochange' => '(no textual differences)',
         'df_binary' => '(binary file — no line diff)', 'df_toobig' => '(file too large for a line diff: {a}/{b} lines)', 'df_nofile' => '(file not available)',
+        'rb_box' => 'Database repair', 'rb_boxhint' => 'Recreate missing tables and reference data (like Dolibarr\'s native "First install" repair). Files are not touched.',
+        'rb_btn' => 'REPAIR DATABASE',
+        'rb_title' => 'DATABASE REPAIR', 'rb_warn' => 'This recreates missing tables and reloads reference data by running Dolibarr\'s native step (CREATE TABLE IF NOT EXISTS). It does not create the database/user and does not change your admin or conf.php. Reference-data dictionaries may be reset to defaults — back up first.',
+        'rb_start' => 'START DB REPAIR', 'rb_confirm' => 'Run the native database repair now? A DB backup is strongly recommended first.',
+        'rb_s_prep' => 'restore install/ and prepare', 'rb_s_step2' => 'create missing tables and reference data', 'rb_s_finish' => 'lock and clean up',
+        'rb_finished' => 'database repair complete.',
+        'rb_prep' => 'install/ restored ({n} files), lock removed', 'rb_done' => 'lock recreated, install/ removed',
+        'rb_noinstall' => 'could not restore install/ from the package', 'rb_noforced' => 'could not write install.forced.php',
         'pk_nodown' => '(only {s} or newer)',
         'e_exists' => 'A Dolibarr is already installed here. Use Update, or confirm a reinstall.',
         'fn_title_up' => 'UPGRADE COMPLETE', 'fn_op_up' => 'dolibarr upgraded', 'fn_upgraded' => 'version: {s}',
@@ -445,6 +453,14 @@ function di_dict()
         'ir_diffhint' => 'pincha un fichero para ver qué líneas cambiaron (rojo = oficial, verde = tu instalación).',
         'df_loading' => 'cargando diff...', 'df_nochange' => '(sin diferencias de texto)',
         'df_binary' => '(fichero binario — sin diff por líneas)', 'df_toobig' => '(fichero demasiado grande para diff por líneas: {a}/{b} líneas)', 'df_nofile' => '(fichero no disponible)',
+        'rb_box' => 'Reparación de la base de datos', 'rb_boxhint' => 'Recrea tablas y datos de referencia que falten (como la "Primera instalación" de Dolibarr usada para reparar). No toca los ficheros.',
+        'rb_btn' => 'REPARAR BASE DE DATOS',
+        'rb_title' => 'REPARACIÓN DE LA BASE DE DATOS', 'rb_warn' => 'Recrea las tablas que falten y recarga los datos de referencia ejecutando el paso nativo de Dolibarr (CREATE TABLE IF NOT EXISTS). No crea la base de datos/usuario ni cambia tu admin ni conf.php. Los diccionarios de datos de referencia pueden volver a sus valores por defecto — haz una copia antes.',
+        'rb_start' => 'INICIAR REPARACIÓN DE BD', 'rb_confirm' => '¿Ejecutar la reparación nativa de la base de datos ahora? Se recomienda encarecidamente una copia de la BD antes.',
+        'rb_s_prep' => 'restaurar install/ y preparar', 'rb_s_step2' => 'crear tablas y datos de referencia que falten', 'rb_s_finish' => 'bloquear y limpiar',
+        'rb_finished' => 'reparación de la base de datos completada.',
+        'rb_prep' => 'install/ restaurado ({n} ficheros), lock retirado', 'rb_done' => 'lock recreado, install/ eliminado',
+        'rb_noinstall' => 'no se pudo restaurar install/ desde el paquete', 'rb_noforced' => 'no se pudo escribir install.forced.php',
         'pk_nodown' => '(solo {s} o superior)',
         'e_exists' => 'Ya hay un Dolibarr instalado aquí. Usa Actualizar, o confirma una reinstalación.',
         'fn_title_up' => 'ACTUALIZACIÓN COMPLETA', 'fn_op_up' => 'dolibarr actualizado', 'fn_upgraded' => 'versión: {s}',
@@ -620,6 +636,14 @@ function di_dict()
         'ir_diffhint' => 'Klicken Sie auf eine Datei, um die geänderten Zeilen zu sehen (rot = offiziell, grün = Ihre Installation).',
         'df_loading' => 'lade Diff...', 'df_nochange' => '(keine Textunterschiede)',
         'df_binary' => '(Binärdatei — kein Zeilen-Diff)', 'df_toobig' => '(Datei zu groß für Zeilen-Diff: {a}/{b} Zeilen)', 'df_nofile' => '(Datei nicht verfügbar)',
+        'rb_box' => 'Datenbank-Reparatur', 'rb_boxhint' => 'Fehlende Tabellen und Referenzdaten neu anlegen (wie die native "Erstinstallation"-Reparatur von Dolibarr). Dateien werden nicht angefasst.',
+        'rb_btn' => 'DATENBANK REPARIEREN',
+        'rb_title' => 'DATENBANK-REPARATUR', 'rb_warn' => 'Legt fehlende Tabellen neu an und lädt Referenzdaten neu, indem der native Dolibarr-Schritt ausgeführt wird (CREATE TABLE IF NOT EXISTS). Erstellt weder Datenbank/Benutzer noch ändert es Admin oder conf.php. Referenzdaten-Verzeichnisse können auf Standard zurückgesetzt werden — vorher sichern.',
+        'rb_start' => 'DB-REPARATUR STARTEN', 'rb_confirm' => 'Native Datenbank-Reparatur jetzt ausführen? Eine DB-Sicherung wird dringend empfohlen.',
+        'rb_s_prep' => 'install/ wiederherstellen und vorbereiten', 'rb_s_step2' => 'fehlende Tabellen und Referenzdaten anlegen', 'rb_s_finish' => 'sperren und aufräumen',
+        'rb_finished' => 'Datenbank-Reparatur abgeschlossen.',
+        'rb_prep' => 'install/ wiederhergestellt ({n} Dateien), Lock entfernt', 'rb_done' => 'Lock neu erstellt, install/ entfernt',
+        'rb_noinstall' => 'install/ konnte nicht aus dem Paket wiederhergestellt werden', 'rb_noforced' => 'install.forced.php konnte nicht geschrieben werden',
         'pk_nodown' => '(nur {s} oder neuer)',
         'e_exists' => 'Hier ist bereits ein Dolibarr installiert. Nutzen Sie Aktualisieren oder bestätigen Sie eine Neuinstallation.',
         'fn_title_up' => 'UPGRADE ABGESCHLOSSEN', 'fn_op_up' => 'dolibarr aktualisiert', 'fn_upgraded' => 'Version: {s}',
@@ -795,6 +819,14 @@ function di_dict()
         'ir_diffhint' => 'cliquez un fichier pour voir les lignes modifiées (rouge = officiel, vert = votre installation).',
         'df_loading' => 'chargement du diff...', 'df_nochange' => '(aucune différence de texte)',
         'df_binary' => '(fichier binaire — pas de diff par lignes)', 'df_toobig' => '(fichier trop grand pour un diff par lignes : {a}/{b} lignes)', 'df_nofile' => '(fichier non disponible)',
+        'rb_box' => 'Réparation de la base de données', 'rb_boxhint' => 'Recrée les tables et données de référence manquantes (comme la réparation "Première installation" native de Dolibarr). Ne touche pas aux fichiers.',
+        'rb_btn' => 'RÉPARER LA BASE',
+        'rb_title' => 'RÉPARATION DE LA BASE', 'rb_warn' => 'Recrée les tables manquantes et recharge les données de référence en exécutant l\'étape native de Dolibarr (CREATE TABLE IF NOT EXISTS). Ne crée pas la base/l\'utilisateur et ne change ni votre admin ni conf.php. Les dictionnaires de données de référence peuvent revenir aux valeurs par défaut — sauvegardez avant.',
+        'rb_start' => 'LANCER LA RÉPARATION BD', 'rb_confirm' => 'Lancer la réparation native de la base maintenant ? Une sauvegarde de la base est fortement recommandée.',
+        'rb_s_prep' => 'restaurer install/ et préparer', 'rb_s_step2' => 'créer les tables et données de référence manquantes', 'rb_s_finish' => 'verrouiller et nettoyer',
+        'rb_finished' => 'réparation de la base terminée.',
+        'rb_prep' => 'install/ restauré ({n} fichiers), verrou retiré', 'rb_done' => 'verrou recréé, install/ supprimé',
+        'rb_noinstall' => 'impossible de restaurer install/ depuis le paquet', 'rb_noforced' => 'impossible d\'écrire install.forced.php',
         'pk_nodown' => '(seulement {s} ou plus récent)',
         'e_exists' => 'Un Dolibarr est déjà installé ici. Utilisez Mettre à jour, ou confirmez une réinstallation.',
         'fn_title_up' => 'MISE À JOUR TERMINÉE', 'fn_op_up' => 'dolibarr mis à jour', 'fn_upgraded' => 'version : {s}',
@@ -970,6 +1002,14 @@ function di_dict()
         'ir_diffhint' => 'clicca un file per vedere le righe cambiate (rosso = ufficiale, verde = la tua installazione).',
         'df_loading' => 'caricamento diff...', 'df_nochange' => '(nessuna differenza di testo)',
         'df_binary' => '(file binario — niente diff per righe)', 'df_toobig' => '(file troppo grande per un diff per righe: {a}/{b} righe)', 'df_nofile' => '(file non disponibile)',
+        'rb_box' => 'Riparazione del database', 'rb_boxhint' => 'Ricrea tabelle e dati di riferimento mancanti (come la riparazione "Prima installazione" nativa di Dolibarr). Non tocca i file.',
+        'rb_btn' => 'RIPARA DATABASE',
+        'rb_title' => 'RIPARAZIONE DEL DATABASE', 'rb_warn' => 'Ricrea le tabelle mancanti e ricarica i dati di riferimento eseguendo il passo nativo di Dolibarr (CREATE TABLE IF NOT EXISTS). Non crea il database/utente né cambia l\'admin o conf.php. I dizionari di dati di riferimento potrebbero tornare ai valori predefiniti — fai prima un backup.',
+        'rb_start' => 'AVVIA RIPARAZIONE DB', 'rb_confirm' => 'Eseguire ora la riparazione nativa del database? Si consiglia vivamente un backup del DB prima.',
+        'rb_s_prep' => 'ripristina install/ e prepara', 'rb_s_step2' => 'crea tabelle e dati di riferimento mancanti', 'rb_s_finish' => 'blocca e pulisci',
+        'rb_finished' => 'riparazione del database completata.',
+        'rb_prep' => 'install/ ripristinato ({n} file), lock rimosso', 'rb_done' => 'lock ricreato, install/ rimosso',
+        'rb_noinstall' => 'impossibile ripristinare install/ dal pacchetto', 'rb_noforced' => 'impossibile scrivere install.forced.php',
         'pk_nodown' => '(solo {s} o superiore)',
         'e_exists' => 'Qui è già installato un Dolibarr. Usa Aggiorna, oppure conferma una reinstallazione.',
         'fn_title_up' => 'AGGIORNAMENTO COMPLETATO', 'fn_op_up' => 'dolibarr aggiornato', 'fn_upgraded' => 'versione: {s}',
@@ -3138,6 +3178,99 @@ function di_repair_delete_extras($cfg, $files)
     return array($ok, $fail);
 }
 
+/* ----- Reparación de BASE DE DATOS (recrea tablas/datos que falten, idempotente) ----- */
+
+/** Rutas candidatas del install.lock (hay que quitarlas todas para correr install/, y recrear una). */
+function di_install_lock_paths($cfg)
+{
+    $paths = array();
+    $c = @file_get_contents($cfg['target'] . '/conf/conf.php');
+    if ($c && preg_match('/dolibarr_main_data_root\s*=\s*[\'"]([^\'"]+)[\'"]/', $c, $m)) {
+        $paths[] = $m[1] . '/install.lock';
+    }
+    $paths[] = preg_replace('#/[^/]+$#', '/documents', $cfg['target']) . '/install.lock';
+    $paths[] = $cfg['target'] . '/documents/install.lock';
+    $paths[] = $cfg['target'] . '/install.lock'; // DOL_DOCUMENT_ROOT
+    return array_values(array_unique($paths));
+}
+
+/** Restaura el directorio install/ desde el ZIP oficial (necesario para correr step2). [n|false]. */
+function di_restore_install_dir($cfg)
+{
+    if (empty($cfg['zip']) || !is_file($cfg['zip']) || !class_exists('ZipArchive')) {
+        return false;
+    }
+    $zip = new ZipArchive();
+    if ($zip->open($cfg['zip']) !== true) {
+        return false;
+    }
+    $prefix = isset($cfg['prefix']) ? $cfg['prefix'] : '';
+    $plen = strlen($prefix);
+    $instPrefix = $prefix . 'install/';
+    $ilen = strlen($instPrefix);
+    $target = $cfg['target'];
+    $n = 0;
+    for ($i = 0; $i < $zip->numFiles; $i++) {
+        $name = $zip->getNameIndex($i);
+        if ($name === false || strncmp($name, $instPrefix, $ilen) !== 0) {
+            continue;
+        }
+        $rel = substr($name, $plen); // install/...
+        $dest = $target . '/' . $rel;
+        if (substr($name, -1) === '/') {
+            @mkdir($dest, 0755, true);
+            continue;
+        }
+        $dir = dirname($dest);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        $content = $zip->getFromIndex($i);
+        if ($content !== false && @file_put_contents($dest, $content) !== false) {
+            $n++;
+        }
+    }
+    $zip->close();
+    return $n;
+}
+
+/** Escribe install.forced.php para reparar la BD (createdatabase/createuser=false). NO toca conf.php. */
+function di_write_forced_for_repair($cfg)
+{
+    $installDir = $cfg['target'] . '/install';
+    if (!is_dir($installDir)) {
+        return false;
+    }
+    $db = $cfg['db'];
+    $ve = function ($v) {
+        return var_export($v, true);
+    };
+    $forced = "<?php\n"
+        . "/* EasyDoliInstaller " . DI_VERSION . " - reparacion de BD (no crea BD/usuario, no toca admin) */\n"
+        . "\$force_install_distrib = 'custom';\n"
+        . "\$force_install_nophpinfo = true;\n"
+        . "\$force_install_noedit = 2;\n"
+        . "\$force_install_message = '';\n"
+        . "\$force_install_main_data_root = null;\n"
+        . "\$force_install_type = " . $ve(isset($db['type']) ? $db['type'] : 'mysqli') . ";\n"
+        . "\$force_install_dbserver = " . $ve($db['host']) . ";\n"
+        . "\$force_install_port = " . $ve((int) $db['port']) . ";\n"
+        . "\$force_install_database = " . $ve($db['name']) . ";\n"
+        . "\$force_install_prefix = " . $ve($db['prefix']) . ";\n"
+        . "\$force_install_databaselogin = " . $ve($db['user']) . ";\n"
+        . "\$force_install_databasepass = " . $ve($db['pass']) . ";\n"
+        . "\$force_install_createdatabase = false;\n"
+        . "\$force_install_createuser = false;\n"
+        . "\$force_install_databaserootlogin = '';\n"
+        . "\$force_install_databaserootpass = '';\n"
+        . "\$force_install_dolibarrlogin = 'admin';\n"
+        . "\$force_install_lockinstall = '0444';\n"
+        . "\$force_install_module = '';\n";
+    $ok = @file_put_contents($installDir . '/install.forced.php', $forced);
+    @chmod($installDir . '/install.forced.php', 0600);
+    return $ok !== false;
+}
+
 /**
  * Diff unificado y compacto entre el contenido OFICIAL y el INSTALADO de un fichero
  * modificado. Devuelve ['diff'=>texto, 'added'=>n, 'removed'=>n] o ['error'=>...].
@@ -3314,7 +3447,7 @@ if (isset($_GET['ajax'])) {
 
     // Anti-CSRF / anti-secuestro: las acciones mutantes exigen el token de la instalación
     // (cookie puesta en el arranque). 'versiones' no toca estado y queda exenta.
-    if (in_array($ajax, array('extraer', 'instalar', 'descargar', 'limpiar', 'migrar', 'comparar', 'reparar', 'extras', 'delextras', 'diff'), true) && !di_token_ok($cfg)) {
+    if (in_array($ajax, array('extraer', 'instalar', 'descargar', 'limpiar', 'migrar', 'comparar', 'reparar', 'extras', 'delextras', 'diff', 'repairdb'), true) && !di_token_ok($cfg)) {
         http_response_code(403);
         echo json_encode(array('error' => di_t('e_forbidden')));
         exit;
@@ -3550,6 +3683,67 @@ if (isset($_GET['ajax'])) {
             @chmod(di_repair_state_path(), 0600);
         }
         echo json_encode(array('ok' => $fail === 0, 'restored' => $ok, 'failed' => $fail, 'msg' => di_t('rp_applied', array('{ok}' => $ok, '{fail}' => $fail))));
+        exit;
+    }
+
+    if ($ajax === 'repairdb') {
+        // Reparación de BD: recrea tablas/datos que falten ejecutando el step2 nativo
+        // (CREATE TABLE IF NOT EXISTS, datos de referencia) contra la BD existente.
+        // NO crea BD/usuario ni toca el admin; NO reescribe conf.php.
+        if (!$cfg || ($cfg['mode'] ?? '') !== 'repair') {
+            echo json_encode(array('ok' => false, 'msg' => di_t('e_noconfig')));
+            exit;
+        }
+        $idb = di_read_installed_conf(DI_DIR);
+        if (!$idb) {
+            echo json_encode(array('ok' => false, 'msg' => di_t('up_noconf')));
+            exit;
+        }
+        unset($idb['data_root'], $idb['url_root']);
+        $rcfg = $cfg;
+        $rcfg['db'] = $idb;
+        $rcfg['lang'] = 'auto';
+        $sub = $_GET['sub'] ?? '';
+
+        if ($sub === 'prep') {
+            $n = di_restore_install_dir($rcfg);
+            if ($n === false || $n <= 0) {
+                echo json_encode(array('ok' => false, 'msg' => di_t('rb_noinstall')));
+                exit;
+            }
+            if (!di_write_forced_for_repair($rcfg)) {
+                echo json_encode(array('ok' => false, 'msg' => di_t('rb_noforced')));
+                exit;
+            }
+            // Quitar install.lock (todas las ubicaciones) para poder correr install/.
+            foreach (di_install_lock_paths($rcfg) as $p) {
+                @unlink($p);
+            }
+            echo json_encode(array('ok' => true, 'msg' => di_t('rb_prep', array('{n}' => $n))));
+            exit;
+        }
+
+        if ($sub === 'step2') {
+            $r = di_run_substep($rcfg, 'step2'); // CREATE TABLE IF NOT EXISTS + datos de referencia
+            echo json_encode($r);
+            exit;
+        }
+
+        if ($sub === 'finish') {
+            // Recrear install.lock y retirar install/ + forced (vuelve al estado seguro).
+            $cands = di_install_lock_paths($rcfg);
+            $lock = $cands[0];
+            $ld = dirname($lock);
+            if (!is_dir($ld)) {
+                @mkdir($ld, 0755, true);
+            }
+            @file_put_contents($lock, "lockfile recreated by EasyDoliInstaller\n");
+            @di_rrmdir($rcfg['target'] . '/install');
+            echo json_encode(array('ok' => true, 'msg' => di_t('rb_done')));
+            exit;
+        }
+
+        echo json_encode(array('ok' => false, 'msg' => 'sub?'));
         exit;
     }
 
@@ -4348,7 +4542,7 @@ $ediReinstall = !empty($cfgExisting['confirm_reinstall'])                 // rei
 $ediIntentional = $ediInUpdate || $ediReinstall;
 
 // Pasos que pertenecen a un flujo ya iniciado: no deben mostrar la pantalla de elección.
-$ediFlowSteps = array('finalizar', 'redir', 'instalar', 'extraer', 'descargar', 'migrar', 'actualizar', 'reparar', 'verificar', 'informe');
+$ediFlowSteps = array('finalizar', 'redir', 'instalar', 'extraer', 'descargar', 'migrar', 'actualizar', 'reparar', 'verificar', 'informe', 'repararbd');
 
 // Autolimpieza: solo si una instalación NUESTRA (full/simple) terminó y el instalador
 // quedó abandonado, se autodestruye. NO se aplica a flujos de actualización/reinstalación
@@ -4708,6 +4902,11 @@ if ($paso === 'informe') {
     <tr><td class="s"><?php echo $restore ? '<span class="tagWARN">[diff]</span>' : '<span class="tagOK">[ OK ]</span>'; ?></td><td><?php echo di_h(di_t('ir_summary', array('{m}' => count($modified), '{k}' => count($missing)))); ?></td></tr>
     <tr><td class="s"><?php echo $nExtra ? '<span class="tagWARN">[+ ' . $nExtra . ']</span>' : '<span class="tagOK">[ OK ]</span>'; ?></td><td><?php echo di_h(di_t('ir_extrasum', array('{n}' => $nExtra))); ?></td></tr>
 </table>
+<div style="margin-top:12px;border:1px solid var(--line);padding:8px 10px">
+    <div><?php echo di_h(di_t('rb_box')); ?></div>
+    <div class="hint" style="margin:4px 0 8px"><?php echo di_h(di_t('rb_boxhint')); ?></div>
+    <a class="btn dim" href="?paso=repararbd"><?php echo di_h(di_t('rb_btn')); ?> &gt;</a>
+</div>
 <?php if ($restore === 0 && $nExtra === 0) { ?>
     <div class="msg ok" style="margin-top:12px"><?php echo di_h(di_t('ir_clean')); ?></div>
     <div class="row"><span></span><a class="btn" href="<?php echo di_h($base); ?>/"><?php echo di_h(di_t('b_open')); ?> &gt;</a></div>
@@ -4815,6 +5014,73 @@ if ($paso === 'informe') {
   }
 </script>
 <?php } ?>
+<?php
+    di_footer();
+    exit;
+}
+
+if ($paso === 'repararbd') {
+    $cfg = di_load_config();
+    if (!$cfg || ($cfg['mode'] ?? '') !== 'repair') {
+        header('Location: ' . DI_SELF . '?paso=bienvenida');
+        exit;
+    }
+    $GLOBALS['di_force_mode'] = 'repair';
+    $installedDb = di_read_installed_conf(DI_DIR);
+    // Sembramos db + token ANTES de cualquier salida, para que la descarga del backup
+    // (?ajax=backup) funcione aquí y el token siga válido.
+    if ($installedDb && empty($cfg['db']['name'])) {
+        $dbp = $installedDb;
+        unset($dbp['data_root'], $dbp['url_root']);
+        $cfg['db'] = $dbp;
+        di_save_config($cfg);
+        $cfg = di_load_config();
+    }
+    if ($cfg) {
+        di_set_token_cookie($cfg['tok'] ?? '');
+    }
+    $base = rtrim($cfg['baseurl'] ?? di_self_base_url(), '/');
+    $isMysql = (($installedDb['type'] ?? 'mysqli') === 'mysqli');
+    di_header(di_t('st_report'), 'informe');
+    ?>
+<div class="win"><div class="t"><?php echo di_h(di_t('rb_title')); ?></div><div class="b">
+<div class="msg warn"><?php echo di_h(di_t('rb_warn')); ?></div>
+<?php if ($isMysql) { ?>
+    <a class="btn dim" href="?ajax=backup" target="_blank" rel="noopener"><?php echo di_h(di_t('up_backup_btn')); ?></a>
+    <div class="hint" style="margin-top:4px"><?php echo di_h(di_t('up_backup_hint')); ?></div>
+<?php } else { ?>
+    <div class="hint"><?php echo di_h(di_t('up_backup_pg')); ?></div>
+<?php } ?>
+<pre class="log" id="log" aria-live="polite" style="margin-top:12px"></pre>
+<div class="msg err" id="err" style="display:none" role="alert"></div>
+<div class="row">
+    <button class="btn amber" id="go" onclick="startrb()"><?php echo di_h(di_t('rb_start')); ?></button>
+    <a class="btn" id="next" style="display:none" href="<?php echo di_h($base); ?>/"><?php echo di_h(di_t('b_open')); ?> &gt;</a>
+</div>
+</div></div>
+<script>
+  var T=<?php echo json_encode(array('s_prep' => di_t('rb_s_prep'), 's_step2' => di_t('rb_s_step2'), 's_finish' => di_t('rb_s_finish'), 'finished' => di_t('rb_finished'), 'working' => di_t('in_working'), 'confirm' => di_t('rb_confirm'), 'err' => di_t('err'), 'net' => di_t('net'), 'openinstall' => di_t('mg_openinstall'))); ?>;
+  var steps=[['prep',T.s_prep],['step2',T.s_step2],['finish',T.s_finish]];
+  var log=document.getElementById('log'),errb=document.getElementById('err'),next=document.getElementById('next'),go=document.getElementById('go'),cur=null,timer=null,t0=0;
+  function pad(n,w){n=''+n;while(n.length<w)n='0'+n;return n;}
+  function ts(){var d=new Date();return pad(d.getHours(),2)+':'+pad(d.getMinutes(),2)+':'+pad(d.getSeconds(),2);}
+  function fmt(s){var m=Math.floor(s/60),x=s%60;return (m?m+'m ':'')+x+'s';}
+  function put(s){ if(cur){cur.remove();cur=null;} log.insertAdjacentText('beforeend',s+'\n'); cur=document.createElement('span'); cur.className='cursor'; log.appendChild(cur); log.scrollTop=log.scrollHeight; }
+  function repl(s){ var t=log.textContent;var i=t.lastIndexOf('\n',t.length-2);log.textContent=t.substring(0,i+1);put(s); }
+  function stopT(){ if(timer){clearInterval(timer);timer=null;} }
+  function fail(i,m){ stopT(); errb.style.display='block'; errb.innerHTML=T.err+' '+m+'<br><button class="btn" onclick="errb.style.display=\'none\';run('+i+')">'+T.openinstall+'</button>'; if(go){go.disabled=false;} }
+  function run(i){
+    if(i>=steps.length){ put(ts()+'  '+T.finished); next.style.display='inline-block'; return; }
+    var s=steps[i];
+    put(ts()+'  > '+s[1]+' ...'); t0=Date.now();
+    timer=setInterval(function(){ repl(ts()+'  > '+s[1]+' ... '+T.working.replace('{s}',fmt(Math.round((Date.now()-t0)/1000)))); },1000);
+    fetch('<?php echo DI_SELF; ?>?ajax=repairdb&sub='+s[0],{method:'POST',cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(d){ stopT(); if(d.ok){put('          [ OK ] '+(d.msg||'')); run(i+1);} else {put('          [FAIL] '+(d.msg||'')); fail(i,d.msg||T.err);} })
+      .catch(function(e){ stopT(); put('  !! '+T.net+' '+e); fail(i,T.net+' '+e); });
+  }
+  function startrb(){ if(!confirm(T.confirm))return; go.disabled=true; run(0); }
+</script>
 <?php
     di_footer();
     exit;

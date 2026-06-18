@@ -2,6 +2,14 @@
 
 Todos los cambios notables de EasyDoliInstaller.
 
+## [1.10.0] - 2026-06-18
+
+### Añadido — reparar también la BASE DE DATOS (no solo ficheros)
+- Nuevo **"Reparar base de datos"** dentro del modo reparar: recrea **tablas y datos de referencia que falten** ejecutando el paso nativo de Dolibarr (`step2`: `CREATE TABLE IF NOT EXISTS` + datos de referencia) contra la BD existente — el equivalente automatizado al método **"Primera instalación"** que Dolibarr usa para reparar una instalación incompleta.
+- Es idempotente y **acotado**: restaura `install/` desde el paquete oficial de la misma versión, quita `install.lock`, ejecuta `step2` y vuelve a bloquear + retira `install/`. **No** crea base de datos/usuario, **no** toca el administrador y **no** reescribe `conf.php`. Con confirmación, aviso y descarga de copia de la BD antes (MySQL/MariaDB).
+- Así "reparar" cubre las dos caras: **integridad de ficheros** y **completitud de la base de datos**.
+- Probado e2e: instalación 23.0.3, `DROP TABLE` de una tabla → la reparación la recrea (272 tablas), admin y `conf.php` intactos, `install.lock` recreado e `install/` retirado.
+
 ## [1.9.4] - 2026-06-18
 
 ### Corregido — UX de reparar
