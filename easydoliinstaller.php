@@ -57,7 +57,7 @@
 @ignore_user_abort(true);
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE & ~E_WARNING);
 
-define('DI_VERSION', '1.9.3');
+define('DI_VERSION', '1.9.4');
 define('DI_DIR', __DIR__);
 define('DI_SELF', basename(__FILE__));
 define('DI_TMPDIR', DI_DIR . '/__doli_installer_tmp__');
@@ -256,7 +256,7 @@ function di_dict()
         'ir_clean' => 'Integrity OK — every core file matches the official package. Nothing to repair.',
         'ir_more' => 'more', 'ir_legend' => '~ modified (differs from official)   + missing (absent locally). conf/, custom/ and documents/ are excluded.',
         'ir_dlzip' => 'DOWNLOAD AFFECTED FILES (.zip)', 'ir_repair' => 'REPAIR {n} FILES',
-        'ir_repmod' => 'RESTORE {n} MODIFIED', 'ir_repmiss' => 'RESTORE {n} MISSING',
+        'ir_repmod' => 'RESTORE {n} MODIFIED', 'ir_repmiss' => 'RESTORE {n} MISSING', 'ir_bdone' => '✓ DONE',
         'ir_confirmmod' => 'Restore {n} MODIFIED files from the official package (overwriting your changes)? A backup zip is kept first.',
         'ir_confirmmiss' => 'Restore {n} MISSING files from the official package? A backup zip is kept first.',
         'ir_confirm' => 'Restore {n} files from the official package (overwriting the current ones)? A backup zip of the affected files is kept first.',
@@ -431,7 +431,7 @@ function di_dict()
         'ir_clean' => 'Integridad OK — todos los ficheros del core coinciden con el paquete oficial. Nada que reparar.',
         'ir_more' => 'más', 'ir_legend' => '~ modificado (difiere del oficial)   + ausente (falta en local). Se excluyen conf/, custom/ y documents/.',
         'ir_dlzip' => 'DESCARGAR FICHEROS AFECTADOS (.zip)', 'ir_repair' => 'REPARAR {n} FICHEROS',
-        'ir_repmod' => 'RESTAURAR {n} MODIFICADOS', 'ir_repmiss' => 'RESTAURAR {n} AUSENTES',
+        'ir_repmod' => 'RESTAURAR {n} MODIFICADOS', 'ir_repmiss' => 'RESTAURAR {n} AUSENTES', 'ir_bdone' => '✓ HECHO',
         'ir_confirmmod' => '¿Restaurar {n} ficheros MODIFICADOS desde el paquete oficial (sobrescribiendo tus cambios)? Antes se guarda un zip de copia.',
         'ir_confirmmiss' => '¿Restaurar {n} ficheros AUSENTES desde el paquete oficial? Antes se guarda un zip de copia.',
         'ir_confirm' => '¿Restaurar {n} ficheros desde el paquete oficial (sobrescribiendo los actuales)? Antes se guarda un zip de copia de los afectados.',
@@ -606,7 +606,7 @@ function di_dict()
         'ir_clean' => 'Integrität OK — alle Core-Dateien stimmen mit dem offiziellen Paket überein. Nichts zu reparieren.',
         'ir_more' => 'mehr', 'ir_legend' => '~ geändert (weicht vom Original ab)   + fehlend (lokal nicht vorhanden). conf/, custom/ und documents/ ausgenommen.',
         'ir_dlzip' => 'BETROFFENE DATEIEN HERUNTERLADEN (.zip)', 'ir_repair' => '{n} DATEIEN REPARIEREN',
-        'ir_repmod' => '{n} GEÄNDERTE WIEDERHERSTELLEN', 'ir_repmiss' => '{n} FEHLENDE WIEDERHERSTELLEN',
+        'ir_repmod' => '{n} GEÄNDERTE WIEDERHERSTELLEN', 'ir_repmiss' => '{n} FEHLENDE WIEDERHERSTELLEN', 'ir_bdone' => '✓ FERTIG',
         'ir_confirmmod' => '{n} GEÄNDERTE Dateien aus dem offiziellen Paket wiederherstellen (Ihre Änderungen werden überschrieben)? Zuvor wird ein Backup-Zip gespeichert.',
         'ir_confirmmiss' => '{n} FEHLENDE Dateien aus dem offiziellen Paket wiederherstellen? Zuvor wird ein Backup-Zip gespeichert.',
         'ir_confirm' => '{n} Dateien aus dem offiziellen Paket wiederherstellen (die aktuellen überschreiben)? Zuvor wird ein Backup-Zip der betroffenen Dateien gespeichert.',
@@ -781,7 +781,7 @@ function di_dict()
         'ir_clean' => 'Intégrité OK — tous les fichiers du cœur correspondent au paquet officiel. Rien à réparer.',
         'ir_more' => 'de plus', 'ir_legend' => '~ modifié (diffère de l\'officiel)   + manquant (absent en local). conf/, custom/ et documents/ sont exclus.',
         'ir_dlzip' => 'TÉLÉCHARGER LES FICHIERS CONCERNÉS (.zip)', 'ir_repair' => 'RÉPARER {n} FICHIERS',
-        'ir_repmod' => 'RESTAURER {n} MODIFIÉS', 'ir_repmiss' => 'RESTAURER {n} MANQUANTS',
+        'ir_repmod' => 'RESTAURER {n} MODIFIÉS', 'ir_repmiss' => 'RESTAURER {n} MANQUANTS', 'ir_bdone' => '✓ FAIT',
         'ir_confirmmod' => 'Restaurer {n} fichiers MODIFIÉS depuis le paquet officiel (en écrasant vos modifications) ? Un zip de sauvegarde est conservé au préalable.',
         'ir_confirmmiss' => 'Restaurer {n} fichiers MANQUANTS depuis le paquet officiel ? Un zip de sauvegarde est conservé au préalable.',
         'ir_confirm' => 'Restaurer {n} fichiers depuis le paquet officiel (en écrasant les actuels) ? Un zip de sauvegarde des fichiers concernés est conservé au préalable.',
@@ -956,7 +956,7 @@ function di_dict()
         'ir_clean' => 'Integrità OK — tutti i file del core corrispondono al pacchetto ufficiale. Niente da riparare.',
         'ir_more' => 'altri', 'ir_legend' => '~ modificato (differisce dall\'ufficiale)   + mancante (assente in locale). conf/, custom/ e documents/ sono esclusi.',
         'ir_dlzip' => 'SCARICA I FILE INTERESSATI (.zip)', 'ir_repair' => 'RIPARA {n} FILE',
-        'ir_repmod' => 'RIPRISTINA {n} MODIFICATI', 'ir_repmiss' => 'RIPRISTINA {n} MANCANTI',
+        'ir_repmod' => 'RIPRISTINA {n} MODIFICATI', 'ir_repmiss' => 'RIPRISTINA {n} MANCANTI', 'ir_bdone' => '✓ FATTO',
         'ir_confirmmod' => 'Ripristinare {n} file MODIFICATI dal pacchetto ufficiale (sovrascrivendo le tue modifiche)? Prima viene salvato uno zip di backup.',
         'ir_confirmmiss' => 'Ripristinare {n} file MANCANTI dal pacchetto ufficiale? Prima viene salvato uno zip di backup.',
         'ir_confirm' => 'Ripristinare {n} file dal pacchetto ufficiale (sovrascrivendo quelli attuali)? Prima viene salvato uno zip di backup dei file interessati.',
@@ -3503,6 +3503,11 @@ if (isset($_GET['ajax'])) {
         }
         di_repair_backup_zip($cfg, $extras); // copia previa antes de borrar
         list($ok, $fail) = di_repair_delete_extras($cfg, $extras);
+        if ($fail === 0) {
+            $state['extra'] = array(); // ya borrados: no volver a mostrarlos al recargar
+            @file_put_contents(di_repair_state_path(), json_encode($state));
+            @chmod(di_repair_state_path(), 0600);
+        }
         echo json_encode(array('ok' => $fail === 0, 'deleted' => $ok, 'failed' => $fail, 'msg' => di_t('ir_extradel', array('{ok}' => $ok, '{fail}' => $fail))));
         exit;
     }
@@ -3532,6 +3537,18 @@ if (isset($_GET['ajax'])) {
         // Copia de seguridad de los afectados presentes ANTES de sobrescribir.
         di_repair_backup_zip($cfg, $files);
         list($ok, $fail) = di_repair_apply($cfg, $files);
+        // Si se restauró todo, quitamos los ya sanos de la lista para que el informe no
+        // los siga mostrando al recargar (la reparación no re-compara por sí sola).
+        if ($fail === 0) {
+            if ($which === 'mod' || $which === 'all') {
+                $res['modified'] = array();
+            }
+            if ($which === 'miss' || $which === 'all') {
+                $res['missing'] = array();
+            }
+            @file_put_contents(di_repair_state_path(), json_encode($res));
+            @chmod(di_repair_state_path(), 0600);
+        }
         echo json_encode(array('ok' => $fail === 0, 'restored' => $ok, 'failed' => $fail, 'msg' => di_t('rp_applied', array('{ok}' => $ok, '{fail}' => $fail))));
         exit;
     }
@@ -4749,6 +4766,7 @@ if ($paso === 'informe') {
         'confirmdel' => di_t('ir_confirmdel', array('{n}' => $nExtra)),
         'working' => di_t('ir_working'), 'deleting' => di_t('ir_deleting'),
         'done' => di_t('ir_done'), 'fail' => di_t('ir_fail'),
+        'bdone' => di_t('ir_bdone'), 'retry' => di_t('b_retry'),
         'dload' => di_t('df_loading'), 'dnone' => di_t('df_nochange'),
     )); ?>;
   var rlog=document.getElementById('rlog'),donerow=document.getElementById('donerow'),appurl=<?php echo json_encode($base . '/'); ?>;
@@ -4780,8 +4798,12 @@ if ($paso === 'informe') {
     rput(workMsg);
     fetch('<?php echo DI_SELF; ?>?ajax='+url,{method:'POST',cache:'no-store'})
       .then(function(r){return r.json();})
-      .then(function(d){ rput(d.msg||(d.ok?T.done:T.fail)); if(d.ok){donerow.style.display='flex';} else if(b){b.disabled=false;b.textContent='retry';} })
-      .catch(function(e){ rput(T.fail+' '+e); if(b){b.disabled=false;} });
+      .then(function(d){
+        rput(d.msg||(d.ok?T.done:T.fail));
+        if(d.ok){ if(b){b.textContent=T.bdone;b.classList.remove('amber');b.classList.add('dim');} donerow.style.display='flex'; }
+        else if(b){ b.disabled=false; b.textContent=T.retry; }
+      })
+      .catch(function(e){ rput(T.fail+' '+e); if(b){b.disabled=false;b.textContent=T.retry;} });
   }
   function reparMod(){ act('reparar&which=mod','dorepmod',T.confirmmod,T.working); }
   function reparMiss(){ act('reparar&which=miss','dorepmiss',T.confirmmiss,T.working); }

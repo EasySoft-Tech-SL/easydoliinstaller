@@ -2,6 +2,12 @@
 
 Todos los cambios notables de EasyDoliInstaller.
 
+## [1.9.4] - 2026-06-18
+
+### Corregido — UX de reparar
+- El botón de reparar/borrar ya **no se queda en "reparando…"** tras completarse: al terminar con éxito muestra **"✓ hecho"** y aparece la fila de finalización; si falla, se rehabilita para reintentar.
+- Tras una reparación correcta, los ficheros ya sanos se **quitan de la lista** del informe. Antes seguían apareciendo al recargar (aunque su diff ya indicaba "sin diferencias"), porque el informe leía el resultado **cacheado** de la comparación previa y la reparación no la actualizaba.
+
 ## [1.9.3] - 2026-06-18
 
 ### Añadido — reparar modificados y ausentes por separado
