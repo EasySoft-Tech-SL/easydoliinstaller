@@ -2,6 +2,15 @@
 
 Todos los cambios notables de EasyDoliInstaller.
 
+## [1.10.2] - 2026-06-18
+
+### Corregido — "Reparar base de datos" dejaba el sitio redirigiendo al instalador
+- Tras *Reparar base de datos*, abrir Dolibarr llevaba a `install/index.php` (404). Causa: el `step2` (datos de referencia) **repone** la constante `MAIN_NOT_INSTALLED=1` ("Setup is running") y `main.inc.php` redirige a `install/` mientras esté puesta. El paso final ahora **borra `MAIN_NOT_INSTALLED`/`MAIN_NOT_UPGRADED`** de `llx_const` —exactamente lo que hace el `step5` nativo—, así la app abre con normalidad.
+- **`install/` ya no se borra** al reparar la BD. Dolibarr **conserva** `install/` tras instalar (solo lo bloquea con `install.lock`); borrarlo provocaba un 404 al redirigir. Ahora el paso final solo elimina el `install.forced.php` temporal (lleva datos de conexión) y recrea `install.lock`, dejando `install/` en su sitio.
+
+### Corregido — la verificación de ficheros ignoraba `install/`
+- La verificación de integridad **ya coteja el directorio `install/`**: si falta (o difiere) ahora se reporta como **ausente/modificado** y se puede restaurar. Antes se excluía por completo (con la premisa errónea de que Dolibarr lo borra tras instalar), por lo que un `install/` ausente pasaba inadvertido. Se excluyen solo los artefactos propios (`install/install.forced.php`, `install/install.lock`) y los datos del usuario (`conf/`, `custom/`, `documents/`).
+
 ## [1.10.1] - 2026-06-18
 
 ### Mejorado — "Reparar base de datos" ahora es accesible directamente

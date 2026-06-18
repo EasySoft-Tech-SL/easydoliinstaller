@@ -57,7 +57,7 @@
 @ignore_user_abort(true);
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE & ~E_WARNING);
 
-define('DI_VERSION', '1.10.1');
+define('DI_VERSION', '1.10.2');
 define('DI_DIR', __DIR__);
 define('DI_SELF', basename(__FILE__));
 define('DI_TMPDIR', DI_DIR . '/__doli_installer_tmp__');
@@ -277,7 +277,7 @@ function di_dict()
         'rb_start' => 'START DB REPAIR', 'rb_confirm' => 'Run the native database repair now? A DB backup is strongly recommended first.',
         'rb_s_prep' => 'restore install/ and prepare', 'rb_s_step2' => 'create missing tables and reference data', 'rb_s_finish' => 'lock and clean up',
         'rb_finished' => 'database repair complete.',
-        'rb_prep' => 'install/ restored ({n} files), lock removed', 'rb_done' => 'lock recreated, install/ removed',
+        'rb_prep' => 'install/ restored ({n} files), lock removed', 'rb_done' => 'install flag cleared, lock recreated (install/ kept)',
         'rb_noinstall' => 'could not restore install/ from the package', 'rb_noforced' => 'could not write install.forced.php',
         'pk_nodown' => '(only {s} or newer)',
         'e_exists' => 'A Dolibarr is already installed here. Use Update, or confirm a reinstall.',
@@ -461,7 +461,7 @@ function di_dict()
         'rb_start' => 'INICIAR REPARACIÓN DE BD', 'rb_confirm' => '¿Ejecutar la reparación nativa de la base de datos ahora? Se recomienda encarecidamente una copia de la BD antes.',
         'rb_s_prep' => 'restaurar install/ y preparar', 'rb_s_step2' => 'crear tablas y datos de referencia que falten', 'rb_s_finish' => 'bloquear y limpiar',
         'rb_finished' => 'reparación de la base de datos completada.',
-        'rb_prep' => 'install/ restaurado ({n} ficheros), lock retirado', 'rb_done' => 'lock recreado, install/ eliminado',
+        'rb_prep' => 'install/ restaurado ({n} ficheros), lock retirado', 'rb_done' => 'flag de instalación limpiado, lock recreado (install/ conservado)',
         'rb_noinstall' => 'no se pudo restaurar install/ desde el paquete', 'rb_noforced' => 'no se pudo escribir install.forced.php',
         'pk_nodown' => '(solo {s} o superior)',
         'e_exists' => 'Ya hay un Dolibarr instalado aquí. Usa Actualizar, o confirma una reinstalación.',
@@ -645,7 +645,7 @@ function di_dict()
         'rb_start' => 'DB-REPARATUR STARTEN', 'rb_confirm' => 'Native Datenbank-Reparatur jetzt ausführen? Eine DB-Sicherung wird dringend empfohlen.',
         'rb_s_prep' => 'install/ wiederherstellen und vorbereiten', 'rb_s_step2' => 'fehlende Tabellen und Referenzdaten anlegen', 'rb_s_finish' => 'sperren und aufräumen',
         'rb_finished' => 'Datenbank-Reparatur abgeschlossen.',
-        'rb_prep' => 'install/ wiederhergestellt ({n} Dateien), Lock entfernt', 'rb_done' => 'Lock neu erstellt, install/ entfernt',
+        'rb_prep' => 'install/ wiederhergestellt ({n} Dateien), Lock entfernt', 'rb_done' => 'Installations-Flag entfernt, Lock neu erstellt (install/ behalten)',
         'rb_noinstall' => 'install/ konnte nicht aus dem Paket wiederhergestellt werden', 'rb_noforced' => 'install.forced.php konnte nicht geschrieben werden',
         'pk_nodown' => '(nur {s} oder neuer)',
         'e_exists' => 'Hier ist bereits ein Dolibarr installiert. Nutzen Sie Aktualisieren oder bestätigen Sie eine Neuinstallation.',
@@ -829,7 +829,7 @@ function di_dict()
         'rb_start' => 'LANCER LA RÉPARATION BD', 'rb_confirm' => 'Lancer la réparation native de la base maintenant ? Une sauvegarde de la base est fortement recommandée.',
         'rb_s_prep' => 'restaurer install/ et préparer', 'rb_s_step2' => 'créer les tables et données de référence manquantes', 'rb_s_finish' => 'verrouiller et nettoyer',
         'rb_finished' => 'réparation de la base terminée.',
-        'rb_prep' => 'install/ restauré ({n} fichiers), verrou retiré', 'rb_done' => 'verrou recréé, install/ supprimé',
+        'rb_prep' => 'install/ restauré ({n} fichiers), verrou retiré', 'rb_done' => 'indicateur d\'installation effacé, verrou recréé (install/ conservé)',
         'rb_noinstall' => 'impossible de restaurer install/ depuis le paquet', 'rb_noforced' => 'impossible d\'écrire install.forced.php',
         'pk_nodown' => '(seulement {s} ou plus récent)',
         'e_exists' => 'Un Dolibarr est déjà installé ici. Utilisez Mettre à jour, ou confirmez une réinstallation.',
@@ -1013,7 +1013,7 @@ function di_dict()
         'rb_start' => 'AVVIA RIPARAZIONE DB', 'rb_confirm' => 'Eseguire ora la riparazione nativa del database? Si consiglia vivamente un backup del DB prima.',
         'rb_s_prep' => 'ripristina install/ e prepara', 'rb_s_step2' => 'crea tabelle e dati di riferimento mancanti', 'rb_s_finish' => 'blocca e pulisci',
         'rb_finished' => 'riparazione del database completata.',
-        'rb_prep' => 'install/ ripristinato ({n} file), lock rimosso', 'rb_done' => 'lock ricreato, install/ rimosso',
+        'rb_prep' => 'install/ ripristinato ({n} file), lock rimosso', 'rb_done' => 'flag di installazione rimosso, lock ricreato (install/ conservato)',
         'rb_noinstall' => 'impossibile ripristinare install/ dal pacchetto', 'rb_noforced' => 'impossibile scrivere install.forced.php',
         'pk_nodown' => '(solo {s} o superiore)',
         'e_exists' => 'Qui è già installato un Dolibarr. Usa Aggiorna, oppure conferma una reinstallazione.',
@@ -2935,15 +2935,17 @@ function di_repair_state_path()
 /** ¿Se excluye esta ruta del cotejo? (datos/config del usuario, no del core). */
 function di_repair_skip($rel)
 {
-    // Datos/config del usuario, y el directorio install/ (se ELIMINA tras instalar —
-    // recomendado por seguridad—, así que su ausencia es normal y no debe contar como
-    // "ausente"). El resto del core sí se coteja.
-    foreach (array('conf/', 'custom/', 'documents/', 'install/') as $p) {
+    // Solo se excluyen los datos/config del usuario. El directorio install/ SÍ se coteja:
+    // Dolibarr lo CONSERVA tras instalar (no se borra; solo se bloquea con install.lock),
+    // así que si falta debe reportarse como "ausente" para poder restaurarlo.
+    foreach (array('conf/', 'custom/', 'documents/') as $p) {
         if (strncmp($rel, $p, strlen($p)) === 0) {
             return true;
         }
     }
-    return ($rel === 'conf/conf.php' || $rel === 'install.lock' || $rel === 'install');
+    // Artefactos de runtime/instalador que NO forman parte del paquete oficial.
+    return ($rel === 'conf/conf.php' || $rel === 'install.lock'
+        || $rel === 'install/install.forced.php' || $rel === 'install/install.lock');
 }
 
 /**
@@ -3115,7 +3117,7 @@ function di_scan_extras($cfg)
         return array();
     }
     $self = basename(__FILE__);
-    $skipTop = array('conf', 'custom', 'documents', 'install',
+    $skipTop = array('conf', 'custom', 'documents',
         basename(DI_TMPDIR), '__doli_extract__', '.git', '.svn', '_repo');
     $extras = array();
     $cap = 5000; // límite de seguridad para no desbordar
@@ -3735,7 +3737,16 @@ if (isset($_GET['ajax'])) {
         }
 
         if ($sub === 'finish') {
-            // Recrear install.lock y retirar install/ + forced (vuelve al estado seguro).
+            // 1) Quitar el flag "instalación en curso" que step2 (datos de referencia) repone.
+            //    Es justo lo que hace el step5 nativo; sin esto Dolibarr redirige a install/
+            //    al abrir la app (MAIN_NOT_INSTALLED -> Location: install/index.php).
+            $pfx = (isset($rcfg['db']['prefix']) && preg_match('/^[A-Za-z0-9_]+$/', $rcfg['db']['prefix']))
+                ? $rcfg['db']['prefix'] : 'llx_';
+            di_db_query($rcfg, "DELETE FROM " . $pfx . "const WHERE name IN ('MAIN_NOT_INSTALLED','MAIN_NOT_UPGRADED')");
+            // 2) Borrar SOLO el install.forced.php que escribimos (lleva datos de conexión).
+            //    El directorio install/ se CONSERVA, como en una instalación normal de Dolibarr.
+            @unlink($rcfg['target'] . '/install/install.forced.php');
+            // 3) Recrear install.lock para bloquear el asistente de instalación.
             $cands = di_install_lock_paths($rcfg);
             $lock = $cands[0];
             $ld = dirname($lock);
@@ -3743,7 +3754,6 @@ if (isset($_GET['ajax'])) {
                 @mkdir($ld, 0755, true);
             }
             @file_put_contents($lock, "lockfile recreated by EasyDoliInstaller\n");
-            @di_rrmdir($rcfg['target'] . '/install');
             echo json_encode(array('ok' => true, 'msg' => di_t('rb_done')));
             exit;
         }
